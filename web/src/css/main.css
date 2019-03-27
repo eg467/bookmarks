@@ -1,0 +1,296 @@
+@import url("https://fonts.googleapis.com/css?family=Cinzel|Comfortaa|Didact+Gothic|Jura|Michroma|Montserrat:500|Rokkitt|Sanchez");
+
+/* MENU */
+
+nav label {
+   font-weight: bold;
+}
+
+.nav li {
+   margin: auto 0;
+}
+
+#current-user {
+   padding-right: 10px;
+   font-weight: bold
+}
+
+.filter {
+   display: none;
+}
+
+#content-search {
+   width: 100%;
+}
+
+
+/* END MENU */
+
+.site-img {
+   grid-row: 1 / 3;
+   width: 64px;
+   height: auto;
+
+   max-height: 120px;
+   align-self: center;
+}
+
+.badge,
+.badge-pill {
+   padding: 5px;
+   vertical-align: middle;
+   margin: 1px 4px;
+}
+
+/* TAGS */
+
+.tag-filter {
+   grid-template-columns: 64px 1fr;
+   display: grid;
+   grid-gap: 10px;
+   grid-auto-rows: auto auto;
+}
+
+.tag-filter>a {
+   margin: auto 0;
+}
+
+.tag-filter .popover {
+   width: 800px;
+   max-width: 800px;
+   position: absolute;
+}
+
+tags.tagify {
+   display: inline-block;
+   margin: 5px;
+}
+
+
+.available-tags {
+   margin: 0;
+   padding: 0;
+   font-size: larger;
+}
+
+.available-tags-list {
+   grid-column: 1 / 3;
+}
+
+.tagify__input {
+   display: inline-block !important;
+}
+
+/* END TAGS */
+
+/* ITEM LISTING */
+
+.item-listing {
+   z-index: 1;
+
+   display: block;
+   position: relative;
+   border: 1px solid black;
+   padding: 5px;
+   margin: 5px;
+   border-radius: 10px;
+
+   grid-template-columns: auto 1fr;
+   grid-template-rows: auto;
+   display: grid;
+   grid-gap: 10px;
+
+   background-size: contain;
+   background-repeat: no-repeat;
+   background-position: left;
+}
+
+.item-details {
+   z-index: 3;
+   /* position: relative; */
+}
+
+.favicon {
+   width: 24px;
+   height: 24px;
+}
+
+.item-listing .tag-edit-container {
+   display: none;
+}
+
+.item-listing.edit-tags .tag-edit-container {
+   display: block;
+   background: white;
+}
+
+#item-tag-editor {
+   display: none !important;
+}
+
+.tag-like,
+.item-listing .tag-container {
+   display: inline-block;
+   /* font-family: "Didact Gothic", sans-serif;
+   font-family: "Montserrat", sans-serif;
+   font-family: "Rokkitt", serif;
+   font-family: "Cinzel", serif; */
+   font-family: "Comfortaa", cursive;
+}
+
+.item-listing.edit-tags .tag-container {
+   display: none;
+}
+
+.item-listing .authors span::before {
+   content: "-";
+}
+
+.badge>* {
+   vertical-align: middle;
+}
+
+.site {
+   font-family: "Montserrat", sans-serif;
+   font-family: "Comfortaa", cursive;
+}
+
+.title {
+   font-family: "Montserrat", sans-serif;
+   font-weight: bold;
+   vertical-align: middle;
+}
+
+.item-details .content {
+   font-family: "Rokkitt", serif;
+}
+
+.class-details {
+   grid-row: 2/4;
+}
+
+.strong-bg {
+   background-color: rgba(255, 255, 255, 0.8);
+}
+
+.img-btn {
+   border: none;
+   background-color: transparent;
+   cursor: pointer;
+}
+
+.icon img {
+   height: 24px;
+   width: 24px;
+   align-self: center;
+   vertical-align: middle;
+}
+
+.favorite svg {
+   fill: #c2c2c2;
+}
+
+.favorite.selected svg {
+   fill: #bf3f3f;
+}
+
+.favorite:hover svg {
+   fill: #f25050;
+}
+
+.archive svg,
+.tag-edit-start svg {
+   fill: #c2c2c2;
+}
+
+.archive.selected svg,
+.tag-edit-start.selected svg {
+   fill: #2960a3;
+}
+
+.archive:hover svg,
+.tag-edit-start:hover svg {
+   fill: #46a2e3;
+}
+
+.delete svg {
+   fill: #bf3f3f;
+}
+
+.delete:hover svg {
+   fill: #f25050;
+}
+
+.icon-btn {
+   display: inline-block;
+   width: 16px;
+   height: 16px;
+   margin: 1px 4px;
+   text-decoration-line: none;
+}
+
+.item-footer>* {
+   vertical-align: middle;
+}
+
+/* END ITEM LISTING  */
+
+.card.filter {
+   margin: 10px;
+}
+
+.card-header {
+   font-weight: bold;
+}
+
+/* SETTINGS */
+
+#settings-modal form {
+   padding: 10px;
+   margin: 10px 0;
+   border: 2px gray solid;
+   border-radius: 5px;
+}
+
+/* END SETTINGS */
+
+.show-on-readonly {
+   display: none;
+}
+
+body.readonly .show-on-readonly {
+   display: initial;
+}
+
+body.readonly .hide-on-readonly {
+   display: none;
+}
+
+body.readonly .disable-on-readonly *,
+body.readonly .disable-on-readonly {
+   cursor: not-allowed;
+}
+
+.toast-container {
+   position: fixed;
+   margin: 10px;
+   top: 0;
+   right: 0;
+   z-index: 999999;
+}
+
+.toast-body {
+   font-family: "Rokkitt", serif;
+   font-size: larger;
+   font-weight: bold;
+}
+
+.hide {
+   display: none;
+}
+
+@media screen and (min-width: 481px) {
+   .tag-filter {
+      width: 400px;
+   }
+}

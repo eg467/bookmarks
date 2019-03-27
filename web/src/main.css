@@ -1,0 +1,226 @@
+body {}
+
+/* SEARCH */
+
+.available-or-tags,
+.available-and-tags {
+   padding: 10px;
+}
+
+/* .filter>* {
+   margin: 5px;
+} */
+
+.filter-container {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   grid-auto-rows: auto;
+}
+
+.filter {
+   display: none;
+}
+
+#content-search {
+   width: 100%;
+}
+
+.item-listing {
+   position: relative;
+   border: 1px solid black;
+   grid-template-columns: repeat(3, 1fr);
+   padding: 5px;
+   margin: 5px;
+   border-radius: 10px;
+   display: grid;
+   grid-gap: 10px;
+   grid-template-columns: 64px 1fr;
+   grid-auto-rows: auto auto;
+   z-index: 1;
+
+   background-size: contain;
+   background-repeat: repeat-x;
+   background-position: right;
+}
+
+.item-listing div {
+   z-index: 3;
+}
+
+.badge,
+.badge-pill {
+   padding: 5px;
+   vertical-align: middle;
+   margin: 1px 4px;
+}
+
+.tags {
+   align-self: center;
+}
+
+.item-listing.edit-tags .tag-edit-container {
+   display: block;
+   background: white;
+}
+
+.item-listing .tag-edit-container {
+   display: none;
+}
+
+#item-tag-editor {
+   display: none !important;
+}
+
+.item-listing.edit-tags .tag-container {
+   display: none;
+}
+
+.badge>* {
+   vertical-align: middle;
+}
+
+.site,
+.title {
+   font-weight: bold;
+   font-size: large;
+   vertical-align: middle;
+}
+
+.fav {
+   /* grid-row: 2/4; */
+}
+
+.class-details {
+   grid-row: 2/4;
+}
+
+
+.strong-bg {
+   background-color: rgba(255, 255, 255, 0.80);
+}
+
+.img-btn {
+   border: none;
+   background-color: transparent;
+   cursor: pointer;
+}
+
+.icon,
+.fav,
+.sel {
+   text-align: center;
+}
+
+.icon img {
+   height: 24px;
+   width: 24px;
+   align-self: center;
+   vertical-align: middle;
+}
+
+.icon {
+   background-image: url(../img/star-off.png);
+   background-size: cover;
+   background-position: center center;
+   height: 64px;
+   width: 64px;
+}
+
+.icon.selected {
+   background-image: url(../img/star-on.png)
+}
+
+.selection {
+   height: 36px;
+   width: 36px;
+   display: inline-block;
+   background-image: url(../img/checkbox-off.png);
+   background-size: cover;
+   background-position: center center;
+}
+
+.selection.selected {
+   background-image: url(../img/checkbox-on.png)
+}
+
+.filter {
+   /* padding: 10px; */
+   /* border: 2px solid black;
+   border-radius: 10px; */
+}
+
+.card.filter {
+   margin: 10px;
+
+}
+
+.card-header {
+   font-weight: bold;
+}
+
+.flash {
+   -moz-animation: flash 1s ease-out;
+   -moz-animation-iteration-count: 1;
+
+   -webkit-animation: flash 1s ease-out;
+   -webkit-animation-iteration-count: 1;
+
+   -ms-animation: flash 1s ease-out;
+   -ms-animation-iteration-count: 1;
+}
+
+@keyframes flash {
+   0% {
+      background-color: transparent;
+   }
+
+   50% {
+      background-color: #fbf8b2;
+   }
+
+   100% {
+      background-color: transparent;
+   }
+}
+
+@-webkit-keyframes flash {
+   0% {
+      background-color: transparent;
+   }
+
+   50% {
+      background-color: #fbf8b2;
+   }
+
+   100% {
+      background-color: transparent;
+   }
+}
+
+@-moz-keyframes flash {
+   0% {
+      background-color: transparent;
+   }
+
+   50% {
+      background-color: #fbf8b2;
+   }
+
+   100% {
+      background-color: transparent;
+   }
+}
+
+@-ms-keyframes flash {
+   0% {
+      background-color: transparent;
+   }
+
+   50% {
+      background-color: #fbf8b2;
+   }
+
+   100% {
+      background-color: transparent;
+   }
+}

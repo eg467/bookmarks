@@ -1,8 +1,9 @@
 import { View, IViewSettings, TypedEvent } from "./view";
 import "../utils";
-import { ILinkData, PocketDataSource } from "../models/pocket-api";
+import { ILinkData } from "../models/pocket-api";
 import TagEditorView from "./tag-editor-view";
 import ResultsController from "../controllers/results-controller";
+import "../../img/icons.svg";
 
 export interface IListingViewSettings extends IViewSettings {
    showBackgroundImages?: boolean;
@@ -49,10 +50,10 @@ export default class ListingView extends View {
                <div class="title">
                   <img src="" class="favicon" alt="logo" />
                   <span class="site badge badge-dark"></span>
-                  <a href="#" class="strong-bg">title</a>
+                  <a href="#" class="">title</a>
                </div>
                <div class="content">
-                  <span class="excerpt strong-bg"></span>
+                  <span class="excerpt"></span>
                   <span class="authors"></span>
                </div>
                <div class="item-footer">
@@ -74,7 +75,8 @@ export default class ListingView extends View {
                      <a class="icon-btn delete" href="#">
                         <svg viewBox="0 0 8 8">
                            <use xlink:href="assets/icons.svg#trash"></use>
-                        </svg>                     
+                        </svg>
+                        <span class="confirm-delete">Click To Confirm</span>
                      </a>
 
                   </span>
@@ -160,16 +162,10 @@ export default class ListingView extends View {
             )
          );
 
-      // Selection Checkmark
-      // this.$root
-      //    .find(".selection")
-      //    .off("click")
-      //    .click(toggleHandler(this.toggleSelected.bind(this)));
-
       // Tags
       this.displayTags(link.tags);
 
-      // Tag Control Toggles
+      // Start/stop tag editing buttons
       this.$root
          .find(".tag-edit-start")
          .off("click")
@@ -179,14 +175,7 @@ export default class ListingView extends View {
          .off("click")
          .btnclick(async () => await this.detachTagEditor());
 
-      // Background
-      // const urls: string[] = [
-      //    link.top_image_url,
-      //    link.image,
-      //    this.favicon(link.resolved_url)
-      // ].filter(v => !!v);
-      // //const siteImgUrls=  []
-
+      // Site side image
       const $siteImg = this.$root.find(".site-img");
       const siteImgUrl =
          link.top_image_url || link.image || this.favicon(link.resolved_url);
@@ -198,6 +187,23 @@ export default class ListingView extends View {
          });
          $siteImg.attr("src", siteImg);
       }
+      //$siteImg.btnclick(() => this.toggleSelection());
+
+      // Selection status
+      this.$root.dblclick(() => this.toggleSelection());
+      this.refreshSelection();
+   }
+
+   private async toggleSelection() {
+      const selected = !this.$root.hasClass("selected");
+      await this.controller.selectBookmark(this.link.item_id, selected);
+   }
+
+   refreshSelection() {
+      const isSelected = this.controller.selectedBookmarks.contains(
+         this.link.item_id
+      );
+      this.$root.applyClass("selected", isSelected);
    }
 
    private async toggleArchive($sender: JQuery<HTMLElement>) {
@@ -221,11 +227,10 @@ export default class ListingView extends View {
    }
 
    private displayDeleteConfirmation() {
-      const $btn = this.$root.find(".delete");
-      $btn.text("Click again to confirm deletion.");
+      this.$root.find(".confirm-delete").fadeIn();
       this.deleteTimeout = setTimeout(() => {
          this.deleteTimeout = null;
-         $btn.text("");
+         this.$root.find(".confirm-delete").fadeOut();
       }, 4000);
    }
 
@@ -271,15 +276,6 @@ export default class ListingView extends View {
          .replace("https://", "")
          .split(/[\/?#]/)[0];
    }
-
-   // private cachedImageWithFallbacksUrl(
-   //    urls: string[] = [],
-   //    options: { [key: string]: string } = {}
-   // ) {
-   //    return urls.reduceRight((acc, val, i) => {
-   //       return this.cachedImageUrl(val, options, acc || undefined, i === 0);
-   //    }, "");
-   // }
 
    private cachedImageUrl(
       url: string,

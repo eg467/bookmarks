@@ -11,10 +11,11 @@ export interface PocketApiSettings {
 
 export class ApiFactory {
    static pocketDs(accessToken: string = "", forceLogin: boolean = false) {
+      const callbackUrl = `${
+         window.location.hostname !== "localhost" ? "https" : "http"
+      }://${window.location.host}${window.location.pathname}`;
       return new PocketDataSource({
-         redirectUrl: `${
-            window.location.hostname !== "localhost" ? "https" : "http"
-         }://${window.location.host}${window.location.pathname}`,
+         redirectUrl: callbackUrl,
          accessToken,
          forceLogin
       });
@@ -213,8 +214,10 @@ export class BookmarkApi {
 export class PocketDataSource extends ApiDataSource {
    public readonly readonly = false;
    readonly label: string = "Pocket";
-   //private apiUrl = "https://bookmarks.gldnr.com/api/pocket/";
-   private apiUrl = "https://localhost:44350/api/pocket/";
+   private apiUrl =
+      window.location.hostname === "localhost"
+         ? "https://localhost:44350/api/pocket/"
+         : "https://bookmarks.gldnr.com/api/pocket/";
    constructor(public settings: PocketApiSettings) {
       super();
       if (settings.forceLogin) {
@@ -289,12 +292,13 @@ export class PocketDataSource extends ApiDataSource {
          dataType: "json"
       }).then(
          function(response) {
-            return !response.error
-               ? response.content
-               : Promise.reject(new Error(response.error));
+            if (response.error) {
+               throw new Error(response.error);
+            }
+            return response.content;
          },
          function(xhr, err, v) {
-            return new Error(err);
+            throw new Error(err);
          }
       );
    }
@@ -434,41 +438,43 @@ export class ResultDataSource extends ApiDataSource {
 
 export class PocketLinkEditor {
    private parameters: IActionParameters[] = [];
-   private complete: (() => void)[] = [];
+   private undo: (() => void)[] = [];
 
    constructor(private api: BookmarkApi) {}
 
    async saveChanges() {
       if (this.parameters.length) {
-         await this.api.action(this.parameters);
+         try {
+            await this.api.action(this.parameters);
+         } catch (err) {
+            this.undo.forEach(fn => fn());
+         }
       }
-      this.complete.forEach(fn => fn());
-
       this.parameters = [];
-      this.complete = [];
+      this.undo = [];
    }
 
    private enqueueCall(
       item_id: string,
       action: string,
-      data: any = {},
-      onAction: false | (() => void) = false
+      params: {
+         data?: any;
+         undo?: false | (() => void);
+      } = {}
    ) {
-      this.parameters.push({ item_id, action, ...data });
-      onAction && this.complete.push(onAction);
+      this.parameters.push({ item_id, action, ...(params.data || {}) });
+      params.undo && this.undo.push(params.undo);
       return this;
    }
 
    setArchive(data: ILinkData, value: boolean) {
-      // WARNING: There's a third to delete state unaccounted for.
-      return this.enqueueCall(
-         data.item_id,
-         value ? "archive" : "readd",
-         {},
-         () => {
-            data.status = value ? "1" : "0";
-         }
-      );
+      const origVal = data.status;
+      data.status = value ? "1" : "0";
+
+      // WARNING: There's a third "to delete" state unaccounted for.
+      return this.enqueueCall(data.item_id, value ? "archive" : "readd", {
+         undo: () => (data.status = origVal)
+      });
    }
 
    delete(item_id: string) {
@@ -476,61 +482,53 @@ export class PocketLinkEditor {
    }
 
    setFavorite(data: ILinkData, value: boolean) {
-      return this.enqueueCall(
-         data.item_id,
-         value ? "favorite" : "unfavorite",
-         {},
-         () => (data.favorite = value ? "1" : "0")
-      );
+      const origVal = data.favorite;
+      data.favorite = value ? "1" : "0";
+
+      return this.enqueueCall(data.item_id, value ? "favorite" : "unfavorite", {
+         undo: () => (data.favorite = origVal)
+      });
    }
 
    setTags(data: ILinkData, tags: string[]) {
-      return this.enqueueCall(
-         data.item_id,
-         "tags_replace",
-         {
-            tags: tags.join()
-         },
-         () => (data.tags = tags)
-      );
+      const originalTags = data.tags;
+      data.tags = [...tags];
+
+      return this.enqueueCall(data.item_id, "tags_replace", {
+         undo: () => (data.tags = originalTags)
+      });
    }
 
    addTags(data: ILinkData, tags: string[]) {
-      return this.enqueueCall(
-         data.item_id,
-         "tags_add",
-         {
-            tags: tags.join()
-         },
-         () => {
-            data.tags = [...SetOps.union(new Set(data.tags), new Set(tags))];
-            data.tags.sort();
-         }
-      );
+      const originalTags = data.tags;
+      data.tags = [...SetOps.union(new Set(data.tags), new Set(tags))];
+      data.tags.sort();
+
+      return this.enqueueCall(data.item_id, "tags_add", {
+         data: { tags: tags.join() },
+         undo: () => (data.tags = originalTags)
+      });
    }
 
    removeTags(data: ILinkData, tags: string[]) {
-      return this.enqueueCall(
-         data.item_id,
-         "tags_add",
-         {
-            tags: tags.join()
-         },
-         () => {
-            data.tags = [
-               ...SetOps.difference(new Set(data.tags), new Set(tags))
-            ];
-            data.tags.sort();
-         }
-      );
+      const originalTags = data.tags;
+      data.tags = [...SetOps.difference(new Set(data.tags), new Set(tags))];
+      data.tags.sort();
+
+      return this.enqueueCall(data.item_id, "tags_add", {
+         data: { tags: tags.join() },
+         undo: () => (data.tags = originalTags)
+      });
    }
 
    add(data: ILinkMetadata) {
       return this.enqueueCall(null, "add", {
-         tags: data.tags.join() || "",
-         title: data.given_title,
-         url: data.resolved_url,
-         time: data.time_added
+         data: {
+            tags: data.tags.join() || "",
+            title: data.given_title,
+            url: data.resolved_url,
+            time: data.time_added
+         }
       });
    }
 

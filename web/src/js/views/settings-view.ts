@@ -1,18 +1,24 @@
 import { View, IViewSettings } from "./view";
-import { SettingsController } from "../controllers/settings-controller";
+import {
+   SettingsController,
+   ExportItems
+} from "../controllers/settings-controller";
 
 export class SettingsView extends View {
    constructor(
-      private controller: SettingsController,
-      settings: IViewSettings
+      private readonly controller: SettingsController,
+      settings: IViewSettings = {}
    ) {
       super(settings);
-
-      this.populateRoot();
       this.wireHandlers();
+      this.populateRoot();
    }
 
-   populateRoot() {
+   protected $createRoot() {
+      return $("#conversions");
+   }
+
+   private populateRoot() {
       this.updateSyncerDisplay();
    }
 
@@ -81,6 +87,18 @@ export class SettingsView extends View {
       $("#btn-myjson-export").btnclick(async _ => {
          await this.exportToMyJson();
       });
+
+      $("#ffx-export-type .dropdown-item").click(function() {
+         const txt = $(this).text();
+         $("#ffx-export-type .btn:first-child").text(txt);
+         $("#ffx-export-type .btn:first-child").val(txt.toLowerCase());
+      });
+
+      $("#json-store-export-type .dropdown-item").click(function() {
+         const txt = $(this).text();
+         $("#json-store-export-type .btn:first-child").text(txt);
+         $("#json-store-export-type .btn:first-child").val(txt.toLowerCase());
+      });
    }
 
    private setSynced(
@@ -91,10 +109,13 @@ export class SettingsView extends View {
    }
 
    private async exportToFirefox() {
-      this.controller.exportToFirefox({
-         useOriginalTime: $("#firefox-use-orig-dates").is(":checked"),
-         treatTagsAsFolders: $("#firefox-dirs-as-tags").is(":checked")
-      });
+      this.controller.exportToFirefox(
+         {
+            useOriginalTime: $("#firefox-use-orig-dates").is(":checked"),
+            treatTagsAsFolders: $("#firefox-dirs-as-tags").is(":checked")
+         },
+         <ExportItems>$("#ffx-export-type .btn:first-child").val()
+      );
    }
 
    private async importFromFirefox(toReadOnly: boolean = true) {
@@ -106,7 +127,8 @@ export class SettingsView extends View {
    }
 
    private async exportToMyJson() {
-      await this.controller.exportToMyJson();
+      const type = $("#json-store-export-type .btn:first-child").val() + "";
+      await this.controller.exportToMyJson(<ExportItems>type);
    }
 
    exportedToMyJson(key: string) {

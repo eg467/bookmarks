@@ -59,6 +59,13 @@ namespace ApiProxy.Controllers
             public string redirect_uri { get; set; }
         }
 
+        [HttpGet]
+        [Route("Test", Name = "Test")]
+        public string Test()
+        {
+            return "success";
+        }
+
         [HttpPost]
         [Route("RequestToken", Name = "GetRequestToken")]
         public async Task<ResponseModel> GetRequestToken([FromBody]RequestTokenInputModel model)

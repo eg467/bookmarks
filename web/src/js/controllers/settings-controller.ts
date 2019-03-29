@@ -1,8 +1,4 @@
-import {
-   BookmarkApi,
-   ApiFactory,
-   ResultDataSource
-} from "../models/pocket-api";
+import { BookmarkApi, ResultDataSource } from "../models/pocket-api";
 import { Bookmarks } from "../models/Bookmarks";
 import FilterModel from "../models/filter-model";
 import { SettingsView } from "../views/settings-view";
@@ -15,6 +11,9 @@ import {
    MyJsonConverter
 } from "../models/bookmark-converter";
 import { download, toast } from "../utils";
+import SelectedItems from "../models/selected-items";
+
+export type ExportItems = "full" | "selected" | "filtered";
 
 export class SettingsController {
    syncer: LinkSyncer;
@@ -22,12 +21,11 @@ export class SettingsController {
 
    constructor(
       private pocketApi: BookmarkApi,
-      private filterModel: FilterModel
+      private filterModel: FilterModel,
+      private selectedBookmarks: SelectedItems
    ) {
       this.syncer = new LinkSyncer(this.pocketApi, new MyJsonStore());
-      this.view = new SettingsView(this, {
-         $root: $("#conversions")
-      });
+      this.view = new SettingsView(this);
 
       this.syncer.syncEvent.subscribe((s, args) => {
          toast("Completed", {
@@ -54,6 +52,18 @@ export class SettingsController {
       this.view.updateSyncerDisplay();
    }
 
+   private getResultSet(mode: ExportItems) {
+      switch (mode) {
+         case "filtered":
+            return this.filterModel.filteredResults;
+         case "selected":
+            const ids = this.selectedBookmarks.selectedIds;
+            return this.filterModel.filteredResults.filterIds(ids);
+         default:
+            return this.filterModel.fullResults;
+      }
+   }
+
    async importFromMyJson(key: string, toReadOnly: boolean) {
       if (toReadOnly) {
          window.location.href = "?mode=myjson&key=" + key;
@@ -65,10 +75,10 @@ export class SettingsController {
       await this.importToCurrentApi(results);
    }
 
-   async exportToMyJson() {
+   async exportToMyJson(itemType: ExportItems) {
       const username = this.pocketApi.username;
-      const results = this.filterModel.fullResults;
-      const sl = new StoredLinks(username, results);
+      const bookmarks = this.getResultSet(itemType);
+      const sl = new StoredLinks(username, bookmarks);
       const converter = new MyJsonConverter();
       const key = await converter.export(sl, null);
       this.view.exportedToMyJson(key);
@@ -78,9 +88,13 @@ export class SettingsController {
       });
    }
 
-   async exportToFirefox(options: FirefoxConverterOptions) {
+   async exportToFirefox(
+      options: FirefoxConverterOptions,
+      itemType: ExportItems
+   ) {
       const converter = new FirefoxConverter();
-      const html = converter.export(this.filterModel.fullResults, options);
+      const bookmarks = this.getResultSet(itemType);
+      const html = converter.export(bookmarks, options);
       download("Bookmarks.html", html);
       toast("Completed", {
          title: "Export",

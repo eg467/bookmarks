@@ -67,6 +67,10 @@ body {}
    display: none;
 }
 
+.item-listing.selected {
+   border: 2px green solid;
+}
+
 #item-tag-editor {
    display: none !important;
 }
@@ -84,10 +88,6 @@ body {}
    font-weight: bold;
    font-size: large;
    vertical-align: middle;
-}
-
-.fav {
-   /* grid-row: 2/4; */
 }
 
 .class-details {
@@ -130,24 +130,6 @@ body {}
    background-image: url(../img/star-on.png)
 }
 
-.selection {
-   height: 36px;
-   width: 36px;
-   display: inline-block;
-   background-image: url(../img/checkbox-off.png);
-   background-size: cover;
-   background-position: center center;
-}
-
-.selection.selected {
-   background-image: url(../img/checkbox-on.png)
-}
-
-.filter {
-   /* padding: 10px; */
-   /* border: 2px solid black;
-   border-radius: 10px; */
-}
 
 .card.filter {
    margin: 10px;

@@ -2,10 +2,13 @@ import { SetOps, eif } from "../utils";
 import { View } from "./view";
 import ListingView, { IListingViewSettings } from "./listing-view";
 import TagEditorView, { ITagChangedEventArgs } from "./tag-editor-view";
-import { ILinkData } from "../models/pocket-api";
+import { ILinkData, BookmarkApi, IActionEventArgs } from "../models/pocket-api";
 import { Bookmarks } from "../models/Bookmarks";
 import FilterModel from "../models/filter-model";
 import ResultsController from "../controllers/results-controller";
+import SelectedItems, {
+   SelectionChangedEventArgs
+} from "../models/selected-items";
 
 export interface ILinkTagChangedEventArgs extends ITagChangedEventArgs {
    link: ILinkData;
@@ -23,13 +26,23 @@ export default class ListingsCollectionView extends View {
       sender: TagEditorView,
       args: ITagChangedEventArgs
    ) => Promise<void>;
-   //public linkChangedEvent = new TypedEvent<ListingView, ILinkChangedEventArgs>(this)
-   //public tagChangedEvent = new TypedEvent<ListingsCollectionView, ILinkTagChangedEventArgs>(this);
+
+   private selectionChangedCallback: (
+      sender: SelectedItems,
+      args: SelectionChangedEventArgs
+   ) => void;
+
+   private bookmarkChangedCallback: (
+      sender: BookmarkApi,
+      args: IActionEventArgs
+   ) => void;
 
    constructor(
-      private controller: ResultsController,
-      private filterModel: FilterModel,
-      public settings: IListingViewSettings = {}
+      private readonly controller: ResultsController,
+      private readonly api: BookmarkApi,
+      private readonly filterModel: FilterModel,
+      private readonly selectedItems: SelectedItems,
+      public readonly settings: IListingViewSettings = {}
    ) {
       super(
          $.extend(settings, {
@@ -44,6 +57,8 @@ export default class ListingsCollectionView extends View {
    private setupHandlers() {
       this.resultsChangedCallback = this.onFilterChanged.bind(this);
       this.tagChangedCallback = this.onTagsChanged.bind(this);
+      this.selectionChangedCallback = this.onSelectionChanged.bind(this);
+      this.bookmarkChangedCallback = this.onBookmarkChanged.bind(this);
    }
 
    private wireHandlers() {
@@ -51,6 +66,33 @@ export default class ListingsCollectionView extends View {
          this.resultsChangedCallback
       );
       this.tagEditor.changeEvent.subscribe(this.tagChangedCallback);
+      this.selectedItems.selectionChangedEvent.subscribe(
+         this.selectionChangedCallback,
+         true
+      );
+      this.api.actionEvent.subscribe(this.bookmarkChangedCallback);
+   }
+
+   private onBookmarkChanged(_: BookmarkApi, args: IActionEventArgs) {
+      for (const a of args.actions) {
+         if (a.action === "delete") {
+            this.removeView(a.item_id);
+         } else {
+            this.listingViews[a.item_id].update();
+         }
+      }
+   }
+
+   private onSelectionChanged(
+      _: SelectedItems,
+      args: SelectionChangedEventArgs
+   ) {
+      for (const id of args.removedIds) {
+         this.listingViews[id].refreshSelection();
+      }
+      for (const id of args.addedIds) {
+         this.listingViews[id].refreshSelection();
+      }
    }
 
    private onFilterChanged(_: FilterModel) {
@@ -83,6 +125,10 @@ export default class ListingsCollectionView extends View {
       const visibleIds = Object.keys(this.filterModel.filteredResults.items);
       this.showFilteredViewIds(new Set(visibleIds));
       this.tagEditor.whitelist = this.filterModel.filteredResults.tagList;
+   }
+
+   refreshViewSelection(id: string) {
+      this.listingViews[id].refreshSelection();
    }
 
    /**

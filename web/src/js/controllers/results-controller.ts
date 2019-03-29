@@ -2,6 +2,7 @@ import ListingsCollectionView from "../views/listings-collection-view";
 import { PocketDataSource, ILinkData, BookmarkApi } from "../models/pocket-api";
 import FilterModel from "../models/filter-model";
 import { toast } from "../utils";
+import SelectedItems from "../models/selected-items";
 
 export default class ResultsController {
    listingsCollectionView: ListingsCollectionView;
@@ -9,11 +10,14 @@ export default class ResultsController {
    constructor(
       public api: BookmarkApi,
       public filterModel: FilterModel,
+      public selectedBookmarks: SelectedItems,
       public settings: any
    ) {
       this.listingsCollectionView = new ListingsCollectionView(
          this,
-         filterModel
+         api,
+         filterModel,
+         selectedBookmarks
       );
       this.listingsCollectionView.appendTo($("#view-container"));
    }
@@ -57,5 +61,11 @@ export default class ResultsController {
          .saveChanges();
       this.listingsCollectionView.refresh(link.item_id);
       toast("Tags updated", { type: "success" });
+   }
+
+   async selectBookmark(id: string, value: boolean) {
+      value
+         ? this.selectedBookmarks.add(id)
+         : this.selectedBookmarks.remove(id);
    }
 }

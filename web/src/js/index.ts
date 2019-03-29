@@ -16,45 +16,45 @@ import "./utils";
 import "babel-polyfill";
 import "../css/main.css";
 
-import { ApiFactory, ApiDataSource, BookmarkApi } from "./models/pocket-api";
+import { ApiFactory } from "./models/pocket-api";
 import FilterModel from "./models/filter-model";
 import { MainController } from "./controllers/main-controller";
 import { toast } from "./utils";
 
 $(async function() {
-   let api = await createInitialApi({});
+   //let api = await createInitialApi({});
+
+   const api = await Promise.resolve()
+      .then(function() {
+         return createApi({});
+      })
+      .catch(function(err) {
+         console.error("Error loading requested API.", err);
+         toast("Using samples instead.", {
+            title: "Error loading from API",
+            type: "danger"
+         });
+         return createApi({ mode: "sample" });
+      })
+      .catch(function(err) {
+         console.error("Error loading Sample API.", err);
+         toast("Things are really broken.", {
+            title: "Error loading samples",
+            type: "danger"
+         });
+         throw err;
+      });
+
    const filterModel = new FilterModel(api, {});
    new MainController(api, filterModel);
 });
 
 async function createApi(options: any) {
    let datasource = await ApiFactory.createDataSource(options);
-   return await ApiFactory.createApi(datasource);
-}
+   const api = await ApiFactory.createApi(datasource);
 
-async function createInitialApi(options: any) {
-   try {
-      return await createApi(options);
-   } catch (err) {
-      console.error(err);
-      toast("Using samples instead", {
-         title: "Error finding your bookmarks.",
-         type: "danger"
-      });
-      return await createSafeApi();
-   }
-}
+   // Ensure we can receive results
+   await api.retrieve({});
 
-async function createSafeApi() {
-   try {
-      return await createApi({ mode: "sample" });
-   } catch (err) {
-      console.error(err);
-      toast("Things are really broken.", {
-         title: "Error loading samples",
-         type: "danger"
-      });
-
-      throw new Error(err);
-   }
+   return api;
 }

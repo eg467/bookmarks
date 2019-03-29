@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http;
+using System.Web.Http.Cors;
 
 namespace ApiProxy
 {
@@ -10,7 +11,8 @@ namespace ApiProxy
         public static void Register(HttpConfiguration config)
         {
 #if DEBUG
-            config.EnableCors();
+            var cors = new EnableCorsAttribute("http://localhost:3000,https://bookmarks.gldnr.com", "*", "*");
+            config.EnableCors(cors);
 #endif
 
             config.Formatters.JsonFormatter.SerializerSettings.Converters.Add(

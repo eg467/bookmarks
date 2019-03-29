@@ -39,7 +39,7 @@ export default class FilterModel {
       this.api.retrieveEvent.subscribe((s, args) => {
          this.fullResults = args.results;
          this.runAllFilters();
-      });
+      }, true);
    }
 
    get canFilter() {

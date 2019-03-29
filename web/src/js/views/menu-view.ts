@@ -17,12 +17,16 @@ export class MenuView extends View {
    constructor(
       private controller: MenuController,
       private filterModel: FilterModel,
-      settings: IViewSettings
+      settings: IViewSettings = {}
    ) {
       super(settings);
 
       this.addSubViews();
       this.wireEventHandlers();
+   }
+
+   protected $createRoot() {
+      return $(".navbar");
    }
 
    get username() {

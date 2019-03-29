@@ -7,7 +7,7 @@ export interface ITagEditorViewSettings extends IViewSettings {
    whitelist?: string[];
    blacklist?: string[];
    placeholder?: string;
-   list?: "popover" | "list";
+   list?: "popover" | "list" | false;
 }
 
 export interface ITagChangedEventArgs {
@@ -95,7 +95,6 @@ export default class TagEditorView extends View {
          .btnclick(s => {
             this.$root.find(".available-tags-list").collapse("toggle");
          })
-
          .prependTo(this.$root);
    }
 
@@ -182,7 +181,7 @@ export default class TagEditorView extends View {
    }
 
    get value() {
-      return this.tagify.value.map((tag: any) => tag.value);
+      return <string[]>this.tagify.value.map((tag: any) => tag.value);
    }
    set value(tags) {
       const tmp = this.suppressEvents;

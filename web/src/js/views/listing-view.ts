@@ -190,13 +190,18 @@ export default class ListingView extends View {
       //$siteImg.btnclick(() => this.toggleSelection());
 
       // Selection status
-      this.$root.dblclick(() => this.toggleSelection());
+      this.$root.dblclick(e => this.toggleSelection(e));
       this.refreshSelection();
    }
 
-   private async toggleSelection() {
+   private async toggleSelection(
+      e: JQuery.DoubleClickEvent<HTMLElement, null, HTMLElement, HTMLElement>
+   ) {
       const selected = !this.$root.hasClass("selected");
       await this.controller.selectBookmark(this.link.item_id, selected);
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
    }
 
    refreshSelection() {

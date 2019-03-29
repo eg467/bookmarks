@@ -507,9 +507,10 @@ export class PocketLinkEditor {
 
    setTags(data: ILinkData, tags: string[]) {
       const originalTags = data.tags;
-      data.tags = [...tags];
+      data.tags = tags;
 
       return this.enqueueCall(data.item_id, "tags_replace", {
+         data: { tags: tags.join() },
          undo: () => (data.tags = originalTags)
       });
    }
@@ -530,7 +531,7 @@ export class PocketLinkEditor {
       data.tags = [...SetOps.difference(new Set(data.tags), new Set(tags))];
       data.tags.sort();
 
-      return this.enqueueCall(data.item_id, "tags_add", {
+      return this.enqueueCall(data.item_id, "tags_remove", {
          data: { tags: tags.join() },
          undo: () => (data.tags = originalTags)
       });

@@ -250,6 +250,7 @@ export default class ListingView extends View {
             .first()
       );
       tEditor.show();
+      $(".edit-tags").removeClass("edit-tags");
       this.$root.addClass("edit-tags");
    }
 

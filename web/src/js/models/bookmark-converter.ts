@@ -123,11 +123,11 @@ export class LinkSyncer {
       localStorage.setItem("sync_enabled", value ? "1" : "0");
    }
 
-   private readonly converter: StoreConverter;
+   private readonly converter: JsonStoreConverter;
    constructor(private readonly api: BookmarkApi, store: ILinkStore) {
+      this.converter = new JsonStoreConverter(store);
       this.createCallbacks();
       this.wireCallbacks();
-      this.converter = new StoreConverter(store);
    }
 
    private async apiRetrieval(sender: BookmarkApi, args: IRetrieveEventArgs) {
@@ -327,7 +327,7 @@ export type MyJsonConverterOptions = {};
 /**
  * A Converter that goes directly to JSON.
  */
-export class StoreConverter {
+export class JsonStoreConverter {
    constructor(private store: ILinkStore) {}
 
    async import(key: string) {
@@ -348,7 +348,7 @@ export class StoreConverter {
    }
 }
 
-export class MyJsonConverter extends StoreConverter {
+export class MyJsonConverter extends JsonStoreConverter {
    constructor() {
       super(new MyJsonStore());
    }
@@ -357,7 +357,7 @@ export class MyJsonConverter extends StoreConverter {
 export class JsonConverter {
    /**
     *
-    * @param json IStoredLink[] in JSON string form
+    * @param json IStoredLinks in JSON string form
     */
    import(json: string) {
       return <IStoredLinks>JSON.parse(json);

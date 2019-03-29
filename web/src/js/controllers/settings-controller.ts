@@ -32,6 +32,7 @@ export class SettingsController {
             title: "Bookmark Sync",
             type: "success"
          });
+         this.view.updateSyncerDisplay();
       });
    }
 

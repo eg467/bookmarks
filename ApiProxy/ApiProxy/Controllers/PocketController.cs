@@ -27,30 +27,6 @@ namespace ApiProxy.Controllers
     [RoutePrefix("api/pocket")]
     public class PocketController : ApiController
     {
-        public class DirectedRequestModel
-        {
-            public string Url { get; private set; }
-            public dynamic Body { get; private set; }
-
-            public DirectedRequestModel(string page, dynamic request)
-            {
-                Body = request;
-                Init(page);
-            }
-
-            public DirectedRequestModel(string page)
-            {
-                Body = new ExpandoObject();
-                Init(page);
-            }
-
-            private void Init(string page)
-            {
-                Url = $"https://getpocket.com/v3/{page}";
-                Body.consumer_key = ConfigurationManager.AppSettings["PocketConsumerKey"];
-            }
-        }
-
         public class RequestTokenInputModel
         {
             /// <summary>
@@ -67,7 +43,7 @@ namespace ApiProxy.Controllers
         }
 
         [HttpPost]
-        [Route("RequestToken", Name = "GetRequestToken")]
+        [Route("OAuth/Request", Name = "GetRequestToken")]
         public async Task<ResponseModel> GetRequestToken([FromBody]RequestTokenInputModel model)
         {
             var response = await TryMakeCall("oauth/request", model);
@@ -84,13 +60,11 @@ namespace ApiProxy.Controllers
         }
 
         [HttpPost]
-        [Route("AccessToken", Name = "ExchangeRequestTokenForAccessToken")]
+        [Route("OAuth/authorize", Name = "ExchangeRequestTokenForAccessToken")]
         public async Task<ResponseModel> ExchangeRequestTokenForAccessToken([FromBody]AccessTokenInputModel model)
         {
             return await TryMakeCall("oauth/authorize", model);
         }
-
-
 
         public class RetrievalRequest
         {

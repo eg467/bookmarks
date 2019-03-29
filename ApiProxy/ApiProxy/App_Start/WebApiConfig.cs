@@ -23,7 +23,7 @@ namespace ApiProxy
 
             config.Routes.MapHttpRoute(
                 name: "DefaultApi",
-                routeTemplate: "api/{controller}"
+                routeTemplate: "api/{controller}/{action}"
             );
         }
     }

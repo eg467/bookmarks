@@ -1,39 +1,50 @@
-﻿using System;
+﻿using Algorithmia;
+using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
+using System.Web.Http.Cors;
 
 namespace ApiProxy.Controllers
 {
+
+#if DEBUG
+    [EnableCors(origins: "*", headers: "*", methods: "*")]
+#endif
+    [RoutePrefix("api/default")]
     public class DefaultController : ApiController
     {
-        // GET: api/Default
-        public IEnumerable<string> Get()
+        private string AlgorithmiaKey => ConfigurationManager.AppSettings["AlgorithmiaKey"];
+
+        private dynamic CallAlgorithm(string tag, object input)
         {
-            return new string[] { "value1", "value2" };
+            var client = new Client(AlgorithmiaKey);
+            var algorithm = client.algo(tag);
+            algorithm.setOptions(timeout: 300); // optional
+            return algorithm.pipe<object>(input);
         }
 
-        // GET: api/Default/5
-        public string Get(int id)
+        [HttpGet]
+        [Route("SuggestedTags", Name = "SuggestedTags")]
+        public IEnumerable<string> SuggestedTags(string url)
         {
-            return "value";
+            var response = CallAlgorithm("tags/AutoTagURL/0.1.9", url);
+
+            if (response.error != null || response.result == null)
+            {
+                return new string[0];
+            }
+
+            var tags = ((JObject)response.result).ToObject<Dictionary<string, int>>();
+            return tags
+                .OrderByDescending(kv => kv.Value)
+                .Select(kv => kv.Key)
+                .ToArray();
         }
 
-        // POST: api/Default
-        public void Post([FromBody]string value)
-        {
-        }
-
-        // PUT: api/Default/5
-        public void Put(int id, [FromBody]string value)
-        {
-        }
-
-        // DELETE: api/Default/5
-        public void Delete(int id)
-        {
-        }
     }
 }

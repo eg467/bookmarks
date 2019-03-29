@@ -3,6 +3,65 @@ import { MyJsonConverter, JsonConverter } from "./bookmark-converter";
 import { TypedEvent } from "../views/view";
 import { Bookmarks } from "./Bookmarks";
 
+export class BookmarkApi {
+   constructor(private _dataSource: ApiDataSource) {
+      // Use with memory flag to get initial update.
+      this.dataSourceChangedEvent.trigger();
+   }
+
+   get dataSource() {
+      return this._dataSource;
+   }
+   set dataSource(value: ApiDataSource) {
+      this._dataSource = value;
+      this.dataSourceChangedEvent.trigger();
+   }
+
+   get readonly() {
+      return this.dataSource.readonly;
+   }
+
+   get username() {
+      return this.dataSource.username;
+   }
+
+   clone() {
+      // Assumes an authorized datasource
+      return new BookmarkApi(this.dataSource);
+   }
+
+   destroy() {}
+
+   readonly dataSourceChangedEvent = new TypedEvent<BookmarkApi, void>(this);
+   readonly retrieveEvent = new TypedEvent<BookmarkApi, IRetrieveEventArgs>(
+      this
+   );
+   readonly actionEvent = new TypedEvent<BookmarkApi, IActionEventArgs>(this);
+
+   /**
+    * Retrieves a list of user data (https://getpocket.com/developer/docs/v3/retrieve).
+    * @param {} params Optional parameters listed in API documentation.
+    */
+   async retrieve(params: IRetrieveParameters): Promise<Bookmarks> {
+      const results = await this.dataSource.retrieve(params);
+      this.retrieveEvent.trigger({ params, results });
+      return results;
+   }
+
+   /**
+    * Adds, modifies, or removes a bookmark (https://getpocket.com/developer/docs/v3/modify).
+    * @param actions
+    */
+   async action(actions: IActionParameters[]): Promise<void> {
+      await this.dataSource.action(actions);
+      this.actionEvent.trigger({ actions });
+   }
+
+   createEditor() {
+      return new PocketLinkEditor(this);
+   }
+}
+
 export interface PocketApiSettings {
    redirectUrl: string;
    accessToken?: string; // For debugging.
@@ -152,74 +211,24 @@ export abstract class ApiDataSource {
    }
 }
 
-export class BookmarkApi {
-   constructor(private _dataSource: ApiDataSource) {
-      // Use with memory flag to get initial update.
-      this.dataSourceChangedEvent.trigger();
-   }
-
-   get dataSource() {
-      return this._dataSource;
-   }
-   set dataSource(value: ApiDataSource) {
-      this._dataSource = value;
-      this.dataSourceChangedEvent.trigger();
-   }
-
-   get readonly() {
-      return this.dataSource.readonly;
-   }
-
-   get username() {
-      return this.dataSource.username;
-   }
-
-   clone() {
-      // Assumes an authorized datasource
-      return new BookmarkApi(this.dataSource);
-   }
-
-   destroy() {}
-
-   readonly dataSourceChangedEvent = new TypedEvent<BookmarkApi, void>(this);
-   readonly retrieveEvent = new TypedEvent<BookmarkApi, IRetrieveEventArgs>(
-      this
-   );
-   readonly actionEvent = new TypedEvent<BookmarkApi, IActionEventArgs>(this);
-
-   /**
-    * Retrieves a list of user data (https://getpocket.com/developer/docs/v3/retrieve).
-    * @param {} params Optional parameters listed in API documentation.
-    */
-   async retrieve(params: IRetrieveParameters): Promise<Bookmarks> {
-      const results = await this.dataSource.retrieve(params);
-      this.retrieveEvent.trigger({ params, results });
-      return results;
-   }
-
-   /**
-    * Adds, modifies, or removes a bookmark (https://getpocket.com/developer/docs/v3/modify).
-    * @param actions
-    */
-   async action(actions: IActionParameters[]): Promise<void> {
-      await this.dataSource.action(actions);
-      this.actionEvent.trigger({ actions });
-   }
-
-   createEditor() {
-      return new PocketLinkEditor(this);
-   }
-}
-
 export class PocketDataSource extends ApiDataSource {
    public readonly readonly = false;
+   public readonly useProxy = true;
    readonly label: string = "Pocket";
-   private apiUrl =
-      window.location.hostname === "localhost"
-         ? "https://localhost:44350/api/pocket/"
-         : "https://bookmarks.gldnr.com/api/pocket/";
+   private readonly apiUrl: string;
+
    constructor(public settings: PocketApiSettings) {
       super();
+
+      if (this.useProxy) {
+         this.apiUrl =
+            window.location.hostname === "localhost"
+               ? "https://localhost:44350/api/pocketproxy/"
+               : "https://bookmarks.gldnr.com/api/pocketproxy/";
+      } else {
+         this.apiUrl = "https://getpocket.com/v3/";
+      }
+
       if (settings.forceLogin) {
          this.logout();
       } else if (settings.accessToken) {
@@ -237,8 +246,8 @@ export class PocketDataSource extends ApiDataSource {
             await this.getAccessTokenFromRequestCode();
          } else {
             // STEPS 2/3 of api auth documentation
-            const callback = await this.getRequestToken();
-            window.location.href = callback;
+            await this.getRequestToken();
+            this.redirectUserToPocketAuth();
          }
       } catch (err) {
          console.error(err);
@@ -286,21 +295,18 @@ export class PocketDataSource extends ApiDataSource {
          data.access_token = token;
       });
 
-      return $.post({
-         url: this.apiUrl + page,
-         data: data,
-         dataType: "json"
-      }).then(
-         function(response) {
-            if (response.error) {
-               throw new Error(response.error);
-            }
-            return response.content;
-         },
-         function(xhr, err, v) {
-            throw new Error(err);
-         }
-      );
+      try {
+         const result = await $.post({
+            url: this.apiUrl + page,
+            data: JSON.stringify(data),
+            contentType: "application/json",
+            dataType: "json"
+         });
+
+         return result;
+      } catch (err) {
+         console.error(err);
+      }
    }
 
    /**
@@ -309,15 +315,20 @@ export class PocketDataSource extends ApiDataSource {
     *
     * @returns {string} The url that the user needs to visit to grant account access (access token).
     */
-   async getRequestToken(): Promise<string> {
+   private async getRequestToken(): Promise<void> {
       console.log("getRequestToken");
 
-      const response = await this.callPocket("requesttoken", {
+      const response = await this.callPocket("oauth/request", {
          redirect_uri: this.settings.redirectUrl
       });
 
       this.requestToken = response.code;
-      return response.url;
+   }
+
+   private redirectUserToPocketAuth() {
+      window.location.href = `https://getpocket.com/auth/authorize?request_token=${
+         this.requestToken
+      }&redirect_uri=${this.settings.redirectUrl}`;
    }
 
    /**
@@ -325,7 +336,7 @@ export class PocketDataSource extends ApiDataSource {
     * after the user has authorized the app with Pocket.
     * (Step 5 from https://getpocket.com/developer/docs/authentication)
     */
-   async getAccessTokenFromRequestCode() {
+   private async getAccessTokenFromRequestCode() {
       console.log("exchangeRequestTokenForAccessToken");
       if (this.accessToken) {
          // Use the existing access token.
@@ -341,7 +352,7 @@ export class PocketDataSource extends ApiDataSource {
 
       let response: any;
       try {
-         response = await this.callPocket("AccessToken", {
+         response = await this.callPocket("oauth/authorize", {
             code: this.requestToken
          });
       } catch (err) {
@@ -391,7 +402,7 @@ export class SampleDataSource extends ApiDataSource {
    public readonly readonly = true;
    readonly label: string = "Sample";
 
-   constructor(public settings: DebugPocketApiSettings) {
+   constructor(public settings: SampleDataSourceSettings) {
       super();
       this._username = "Sample User";
    }
@@ -406,6 +417,10 @@ export class SampleDataSource extends ApiDataSource {
       console.log("action", actions);
       throw new Error("This should never be called, as it's read only.");
    }
+}
+
+export interface SampleDataSourceSettings extends PocketApiSettings {
+   file: string;
 }
 
 /**
@@ -568,10 +583,6 @@ export interface ILinkData extends ILinkMetadata {
    sort_id?: string;
    status?: string;
    top_image_url?: string;
-}
-
-export interface DebugPocketApiSettings extends PocketApiSettings {
-   file: string;
 }
 
 export interface IRetrieveParameters {

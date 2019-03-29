@@ -21,8 +21,8 @@ export default class BulkEditView extends View {
    }
 
    private populateRoot() {
-      $("#bulk-selected-only").on("change", function(e) {
-         $(document.body).toggleClass("selected-only", $(this).is(":checked"));
+      $("#bulk-only-selected").on("change", function(e) {
+         $(document.body).toggleClass("only-selected", $(this).is(":checked"));
       });
 
       this.tagEditor = new TagEditorView({

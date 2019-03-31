@@ -17,7 +17,9 @@ export interface ILinkTagChangedEventArgs extends ITagChangedEventArgs {
 export default class ListingsCollectionView extends View {
    // The individual link listings
    public listingViews: { [item_id: string]: ListingView } = {};
-   public tagEditor: TagEditorView = new TagEditorView();
+   public tagEditor: TagEditorView = new TagEditorView({
+      placeholder: "Tags"
+   });
    // Used for tracking changes
    public fullResults: Bookmarks;
 
@@ -52,6 +54,10 @@ export default class ListingsCollectionView extends View {
 
       this.setupHandlers();
       this.wireHandlers();
+   }
+
+   protected $createRoot() {
+      return $("#view-container");
    }
 
    private setupHandlers() {

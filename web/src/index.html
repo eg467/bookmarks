@@ -16,31 +16,34 @@
 </head>
 
 <body>
+
    <nav id="headerNavbar" class="navbar navbar-expand-lg navbar-light bg-light">
-      <a class="navbar-brand" href="#">Bookmarks</a>
+      <a class="navbar-brand" href="index.html">Bookmarks</a>
+
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse"
          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
          <span class="navbar-toggler-icon"></span>
       </button>
 
       <div id="navbarCollapse" class="collapse navbar-collapse">
-         <ul class="nav navbar-nav mr-auto">
-            <li class="nav-item">
-               <a id="refresh-links" class="nav-link" href="#">Refresh</a>
-            </li>
+
+         <div class="nav-item">
+            <a id="refresh-links" class="nav-link" href="#">Refresh</a>
+         </div>
+
+         <ul class="nav navbar-nav mr-auto justify-content-start mt-2 mt-lg-0">
             <li class="nav-item">
                <div id="filter-and-tags" class="tag-filter">
                   <input type="text" name="tags" placeholder="🔍 Search All Tags" />
                </div>
             </li>
-
             <li class="nav-item dropdown">
                <a class="nav-link dropdown-toggle" href="#" id="btn-filter-dropdown" role="button"
                   data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   More Filters
                </a>
                <div aria-labelledby="btn-filter-dropdown" id="filter-dropdown"
-                  class="dropdown-menu px-3 py-3 dropdown-menu-right">
+                  class="dropdown-menu px-3 py-3">
                   <form>
                      <div class="form-group">
                         <label for="filter-or-taginput">Match any of these tags</label>
@@ -78,45 +81,47 @@
          </ul>
 
          <ul class="nav navbar-nav">
-
-            <li class="nav-item px-1">
-               <a id="toggle-bulk-edit" href="#bulk-edit-container" class="btn btn-primary" role="button"
-                  aria-expanded="false" data-toggle="collapse" aria-controls="bulk-edit-container">Bulk Edits</a>
-            </li>
-
-            <li class="nav-item dropdown px-1">
-               <a class="btn btn-primary dropdown-toggle" href="#" id="btn-login-dropdown" role="button"
-                  data-toggle="dropdown">
-                  Menu
-               </a>
-
-               <div class="dropdown-menu dropdown-menu-right ">
-                  <div class="dropdown-item">
-                     <a id="btn-login" href="?mode=pocket&login=1">
-                        Login using your Pocket account
-                     </a>
-                  </div>
-                  <div class="dropdown-item">
-                     <a id="btn-sample" href="?mode=sample">
-                        Use sample links
-                     </a>
-                  </div>
-                  <div class="dropdown-separator"></div>
-                  <div class="dropdown-item">
-                     <a href="#" id="btn-show-settings">
-                        Settings
-                     </a>
-                  </div>
+         <!-- <div class="nav-item dropdown px-1"> -->
+               <li class="nav-item dropdown">
+            <a 
+               class="nav-link dropdown-toggle " href="#" id="btn-login-dropdown" role="button"
+               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+               Menu
+            </a>
+              
+            <div class="dropdown-menu dropdown-menu-right">
+               <div class="dropdown-item">
+                  <a id="toggle-bulk-edit" href="#bulk-edit-container" role="button"
+                     aria-expanded="false" data-toggle="collapse" aria-controls="bulk-edit-container">Bulk Edits</a>
                </div>
-            </li>
-
-            <li class="nav-item px-3 text-right">
-               <span id="current-user"></span>
-               <br>
-               <span id="api-label"></span>
-               <span class="badge badge-danger show-on-readonly">readonly</span>
+               <div class="dropdown-divider"></div>
+               <div class="dropdown-item">
+                  <a id="btn-login" href="?mode=pocket&login=1">
+                     Login using your Pocket account
+                  </a>
+               </div>
+               <div class="dropdown-item">
+                  <a id="btn-sample" href="?mode=sample">
+                     Use sample links
+                  </a>
+               </div>
+               <div class="dropdown-separator"></div>
+               <div class="dropdown-item">
+                  <a href="#" id="btn-show-settings">
+                     Settings
+                  </a>
+               </div>
+            </div>
             </li>
          </ul>
+
+         <div class="nav-item px-3 text-right">
+            <span id="current-user"></span>
+            <br>
+            <span id="api-label"></span>
+            <span class="text-danger show-on-readonly">readonly</span>
+         </div>
+
       </div>
    </nav>
    <div class="error"></div>
@@ -399,11 +404,12 @@
    <div id="loading-container" class="p-5">
       <div class="text-center alert alert-info">
          <img src="img/loader.gif" alt="Loading bookmarks">
-         <p>Please wait while we retrieve all your bookmarks...</p>
+         <p>Loading bookmarks...</p>
       </div>
-
    </div>
-   <div id="view-container"></div>
+
+   <div id="view-container" class="block"></div>
+
    <div class="toast-container"></div>
 </body>
 

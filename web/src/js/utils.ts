@@ -160,6 +160,50 @@ export function download(filename: string, contents: string) {
    document.body.removeChild(element);
 }
 
+let modalId = 0;
+export function showModal(
+   $el: JQuery<HTMLElement>,
+   options: {
+      title: string;
+      onclose: () => void;
+   }
+) {
+   let $container = $(`
+      <div class="modal fade" id="custom-modal-${++modalId}" 
+         tabindex="-1" role="dialog" aria-labelledby="settings-modal-title-${modalId}"
+         aria-hidden="true">
+         <div class="modal-dialog modal-xl " role="document">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title" id="settings-modal-title-${modalId}">
+                     Settings
+                  </h5>
+                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                     <span aria-hidden="true">&times;</span>
+                  </button>
+               </div>
+               <div class="modal-body"></div>
+            </div>
+         </div>
+      </div>`);
+
+   $container
+      .find(".modal-title")
+      .toggle(!!options.title)
+      .text(options.title || "");
+
+   $container.find(".modal-body").append($el);
+
+   $container.find(".modal-header button.close").one("click", function(e) {
+      if (options.onclose) {
+         if (options.onclose) {
+            options.onclose();
+         }
+         $container.remove();
+      }
+   });
+}
+
 /**
  * Executes a function if a test value is truthy.
  * @param value The value whose truthiness to test.

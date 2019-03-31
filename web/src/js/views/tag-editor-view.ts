@@ -35,7 +35,7 @@ export default class TagEditorView extends View {
 
    protected $createRoot() {
       const $root = $("<div>");
-      $root.append($("<input>"));
+      $root.append($("<input>").attr("placeholder", this.settings.placeholder));
 
       return $root;
    }

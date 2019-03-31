@@ -19,7 +19,6 @@ export default class ResultsController {
          filterModel,
          selectedBookmarks
       );
-      this.listingsCollectionView.appendTo($("#view-container"));
    }
 
    async archive(link: ILinkData, status: boolean) {

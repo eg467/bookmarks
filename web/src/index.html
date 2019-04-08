@@ -42,8 +42,7 @@
                   data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   More Filters
                </a>
-               <div aria-labelledby="btn-filter-dropdown" id="filter-dropdown"
-                  class="dropdown-menu px-3 py-3">
+               <div aria-labelledby="btn-filter-dropdown" id="filter-dropdown" class="dropdown-menu px-3 py-3">
                   <form>
                      <div class="form-group">
                         <label for="filter-or-taginput">Match any of these tags</label>
@@ -81,37 +80,50 @@
          </ul>
 
          <ul class="nav navbar-nav">
-         <!-- <div class="nav-item dropdown px-1"> -->
-               <li class="nav-item dropdown">
-            <a 
-               class="nav-link dropdown-toggle " href="#" id="btn-login-dropdown" role="button"
-               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-               Menu
-            </a>
-              
-            <div class="dropdown-menu dropdown-menu-right">
-               <div class="dropdown-item">
-                  <a id="toggle-bulk-edit" href="#bulk-edit-container" role="button"
-                     aria-expanded="false" data-toggle="collapse" aria-controls="bulk-edit-container">Bulk Edits</a>
+            <!-- <div class="nav-item dropdown px-1"> -->
+            <li class="nav-item dropdown">
+               <a class="nav-link dropdown-toggle " href="#" id="btn-login-dropdown" role="button"
+                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  Menu
+               </a>
+
+               <div class="dropdown-menu dropdown-menu-right">
+                  <div class="dropdown-item">
+                     <a id="toggle-bulk-edit" href="#bulk-edit-container" role="button" aria-expanded="false"
+                        data-toggle="collapse" aria-controls="bulk-edit-container">Bulk Edits</a>
+                  </div>
+                  <div class="dropdown-divider"></div>
+                  <div class="dropdown-item px-3">
+                     <label class="form-check-label">
+                        <input checked type="checkbox" id="cb-show-full-summaries" />
+                        Show full summaries
+                     </label>
+                  </div>
+                  <div class="dropdown-item px-3">
+                     <label class="form-check-label">
+                        <input checked type="checkbox" id="cb-show-block-listings" />
+                        Block-style listings
+                     </label>
+                  </div>
+                  <div class="dropdown-divider"></div>
+
+                  <div class="dropdown-item">
+                     <a id="btn-login" href="?mode=pocket&login=1">
+                        Login using your Pocket account
+                     </a>
+                  </div>
+                  <div class="dropdown-item">
+                     <a id="btn-sample" href="?mode=sample">
+                        Use sample links
+                     </a>
+                  </div>
+                  <div class="dropdown-separator"></div>
+                  <div class="dropdown-item">
+                     <a href="#" id="btn-show-settings">
+                        Settings
+                     </a>
+                  </div>
                </div>
-               <div class="dropdown-divider"></div>
-               <div class="dropdown-item">
-                  <a id="btn-login" href="?mode=pocket&login=1">
-                     Login using your Pocket account
-                  </a>
-               </div>
-               <div class="dropdown-item">
-                  <a id="btn-sample" href="?mode=sample">
-                     Use sample links
-                  </a>
-               </div>
-               <div class="dropdown-separator"></div>
-               <div class="dropdown-item">
-                  <a href="#" id="btn-show-settings">
-                     Settings
-                  </a>
-               </div>
-            </div>
             </li>
          </ul>
 
@@ -408,7 +420,8 @@
       </div>
    </div>
 
-   <div id="view-container" class="block"></div>
+   <!-- <div id="view-container" class="block"></div> -->
+   <div id="view-container" class=""></div>
 
    <div class="toast-container"></div>
 </body>

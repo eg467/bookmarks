@@ -48,12 +48,11 @@ export default class ListingView extends View {
    protected $createRoot() {
       return $(
          `<div class="item-listing">
-            <img class="site-img" alt="site-image" src="https://i.imgur.com/gn0z42M.png">
+            <div class="site-img"></div>
 
             <div class="domain"></div>
-            
             <div class="title">
-               <img class="favicon" src="" alt="favicon">
+               <span class="icon-container"></span>
                <a href="#"></a>
             </div>
 
@@ -66,7 +65,7 @@ export default class ListingView extends View {
 
             <div class="summary"></div>
 
-            <div class="item-controls hide-on-readonly show-on-item-hover text-right">
+            <div class="item-controls hide-on-readonly show-on-item-hover">
                <span class="text-danger tag-like show-on-readonly">readonly</span>
                <div class="hide-on-readonly">
                   <a class="icon-btn red-icon-btn favorite" href="#">
@@ -119,7 +118,7 @@ export default class ListingView extends View {
       this.link = link;
 
       const domain = this.domain(link.resolved_url).replace(/^www\./i, "");
-      const isBlock = this.$root.closest(".block").exists();
+      const isBlock = this.$root.closest(".block-listings").exists();
 
       // Listing
       this.$root.attr("id", `item_${link.item_id}`).data("item", link);
@@ -127,13 +126,13 @@ export default class ListingView extends View {
       // Favicon
       let iconUrl = this.favicon(link.resolved_url);
       iconUrl = this.cachedImageUrl(iconUrl);
-      this.$root
-         .find(".favicon")
-         .off("load")
-         .one("load", function() {
-            $(this).toggle((<HTMLImageElement>this).naturalWidth > 1);
-         })
-         .attr("src", iconUrl);
+      const $iconContainer = this.$root.find(".icon-container");
+      this.attachImage(iconUrl, $iconContainer);
+      // .off("load")
+      // .one("load", function() {
+      //    $(this).toggle((<HTMLImageElement>this).naturalWidth > 1);
+      // })
+      // .attr("src", iconUrl);
 
       // Domain label
       this.$root.find(".domain").text(domain);
@@ -210,33 +209,39 @@ export default class ListingView extends View {
          .btnclick(async () => await this.detachTagEditor());
 
       // Site side image
-      if (isBlock) {
-         const $siteImg = this.$root.find(".site-img");
-         const siteImgUrl =
+      const $siteImg = this.$root.find(".site-img");
+      if (!isBlock) {
+         let siteImgUrl =
             link.top_image_url || link.image || this.favicon(link.resolved_url);
 
          if (siteImgUrl) {
-            const siteImg = this.cachedImageUrl(siteImgUrl, {
+            siteImgUrl = this.cachedImageUrl(siteImgUrl, {
                w: "64",
                errorredirect: "https://i.imgur.com/gn0z42M.png"
             });
-            $siteImg.attr("src", siteImg);
+
+            this.attachImage(siteImgUrl, $siteImg);
          }
-         //$siteImg.btnclick(() => this.toggleSelection());
       }
       // Selection status
-      this.$root.dblclick(e => this.toggleSelection(e));
+
+      this.$root.off("mousedown").on("mousedown", event => {
+         // Double click to select the bookmark but prevent text being selected
+         if (event.detail == 2) {
+            this.toggleSelection();
+         }
+         if (event.detail >= 2) {
+            event.stopPropagation();
+            event.preventDefault();
+         }
+      });
+
       this.refreshSelection();
    }
 
-   private async toggleSelection(
-      e: JQuery.DoubleClickEvent<HTMLElement, null, HTMLElement, HTMLElement>
-   ) {
+   private async toggleSelection() {
       const selected = !this.$root.hasClass("selected");
       await this.controller.selectBookmark(this.link.item_id, selected);
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
    }
 
    refreshSelection() {
@@ -344,6 +349,31 @@ export default class ListingView extends View {
       const encode = encodeQs && false ? encodeURIComponent : (s: string) => s;
       const qs = $.map(options, (v, k) => `${k}=${encode(v)}`);
       return `https://images.weserv.nl/?${qs.join("&")}`;
+   }
+
+   private attachImage(
+      src: string,
+      $target: JQuery<HTMLElement>,
+      hideIfSinglePixel = true
+   ) {
+      this.imageLoadAsync(src).then(img => {
+         if (
+            !hideIfSinglePixel ||
+            img.naturalWidth > 1 ||
+            img.naturalHeight > 1
+         ) {
+            $target.empty().append(img);
+         }
+      });
+   }
+
+   private imageLoadAsync(src: string) {
+      return new Promise<HTMLImageElement>((resolve, reject) => {
+         const img = new Image();
+         img.onload = () => resolve(img);
+         img.onerror = e => reject(e);
+         img.src = src;
+      });
    }
 
    private displayTags(tags: string[]) {

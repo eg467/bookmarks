@@ -5,9 +5,16 @@ import { MenuController } from "./menu-controller";
 import { SettingsController } from "./settings-controller";
 import SelectedItems from "../models/selected-items";
 import BulkEditController from "./bulk-edit-controller";
+import { throws } from "assert";
+import { GlobalSettings } from "../models/global-settings";
 
 export class MainController {
-   private controllers: { [key: string]: any } = {};
+   private controllers: {
+      menuController: MenuController;
+      bulkEditController: BulkEditController;
+      resultsController: ResultsController;
+      settingsController: SettingsController;
+   };
 
    constructor(public api: BookmarkApi, public filterModel: FilterModel) {
       this.api.dataSourceChangedEvent.subscribe((s, _) => {
@@ -16,38 +23,43 @@ export class MainController {
 
       const selectedBookmarks = new SelectedItems();
 
-      this.controllers.filterMenu = new MenuController(
-         api,
-         filterModel,
-         selectedBookmarks,
-         {}
-      );
+      this.controllers = {
+         menuController: new MenuController(
+            api,
+            filterModel,
+            selectedBookmarks,
+            {}
+         ),
 
-      this.controllers.bulkEditController = new BulkEditController(
-         api,
-         filterModel,
-         selectedBookmarks
-      );
+         bulkEditController: new BulkEditController(
+            api,
+            filterModel,
+            selectedBookmarks
+         ),
 
-      this.controllers.resultsController = new ResultsController(
-         this.api,
-         this.filterModel,
-         selectedBookmarks,
-         {}
-      );
+         resultsController: new ResultsController(
+            this.api,
+            this.filterModel,
+            selectedBookmarks,
+            {}
+         ),
 
-      this.controllers.settingsController = new SettingsController(
-         this.api,
-         this.filterModel,
-         selectedBookmarks
-      );
-
-      // $(".navbar-toggler").btnclick(_ => {
-      //    $("#navbarCollapse").toggleClass("collapse");
-      // });
+         settingsController: new SettingsController(
+            this.api,
+            this.filterModel,
+            selectedBookmarks
+         )
+      };
 
       this.api.retrieveEvent.subscribe((sender, args) => {
          $("#loading-container").hide();
       }, true);
+
+      this.initializeSettings();
+   }
+
+   private initializeSettings() {
+      GlobalSettings.setting("full-summaries", true);
+      GlobalSettings.setting("block-listings", false);
    }
 }

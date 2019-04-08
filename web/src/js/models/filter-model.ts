@@ -278,7 +278,7 @@ abstract class Filter<TQuery> implements IFilter {
    }
 }
 
-abstract class TagFilter extends Filter<string[]> {
+export abstract class TagFilter extends Filter<string[]> {
    public whitelist: string[] = [];
    public blacklist: string[] = [];
 

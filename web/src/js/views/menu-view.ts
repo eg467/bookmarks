@@ -1,11 +1,9 @@
-import { View, IViewSettings } from "./view";
-import {
-   FilterTagView,
-   FilterTextView,
-   IFilterViewSettings
-} from "./filter-views";
+import { View, IViewSettings, TypedEvent } from "./view";
+import { FilterTagView, FilterTextView } from "./filter-views";
 import { MenuController } from "../controllers/menu-controller";
-import FilterModel from "../models/filter-model";
+
+import FilterModel, { TagFilter } from "../models/filter-model";
+import { GlobalSettings } from "../models/global-settings";
 
 export class MenuView extends View {
    andFilterView: FilterTagView;
@@ -68,6 +66,19 @@ export class MenuView extends View {
       });
    }
 
+   get fullSummaries() {
+      return $("#cb-show-full-summaries").is("#checked");
+   }
+   set fullSummaries(value: boolean) {
+      $("#cb-show-full-summaries").prop("checked", value);
+   }
+   get blockListings() {
+      return $("#cb-show-block-listings").is(":checked");
+   }
+   set blockListings(value: boolean) {
+      $("#cb-show-block-listings").prop("checked", value);
+   }
+
    private wireEventHandlers() {
       // Input events
       //$(".dropdown-menu div").btnclick(_ => {}, true, true);
@@ -80,18 +91,44 @@ export class MenuView extends View {
          $("#settings-modal").modal({});
       });
 
+      $("#cb-show-full-details").change((e: JQuery.ChangeEvent) => {
+         new Promise(res => {
+            const value = (e.target as HTMLInputElement).checked;
+            GlobalSettings.setting("full-summaries", value);
+            res();
+         });
+      });
+
+      $("#cb-show-block-listings").change((e: JQuery.ChangeEvent) => {
+         new Promise(res => {
+            const value = (e.target as HTMLInputElement).checked;
+            GlobalSettings.setting("block-listings", value);
+            res();
+         });
+      });
+
       // Model events
       this.filterModel.resultsChangedEvent.subscribe(
          this.resultsChanged.bind(this)
       );
+
+      GlobalSettings.settingChangedEvent.subscribe((sender, args) => {
+         if (args.key === "full-summaries") {
+            this.fullSummaries = args.value;
+         } else if (args.key === "block-listings") {
+            this.blockListings = args.value;
+         }
+      });
    }
 
    resultsChanged(sender: FilterModel) {
-      this.andFilterView.whitelist = sender.filters.and.whitelist;
-      this.andFilterView.blacklist = sender.filters.and.blacklist;
-      this.orFilterView.whitelist = sender.filters.or.whitelist;
-      this.orFilterView.blacklist = sender.filters.or.blacklist;
-      this.notFilterView.whitelist = sender.filters.not.whitelist;
-      this.notFilterView.blacklist = sender.filters.not.blacklist;
+      this.updateFilterView(this.andFilterView, sender.filters.and);
+      this.updateFilterView(this.orFilterView, sender.filters.or);
+      this.updateFilterView(this.notFilterView, sender.filters.not);
+   }
+
+   private updateFilterView(view: FilterTagView, filter: TagFilter) {
+      view.whitelist = filter.whitelist;
+      view.blacklist = filter.blacklist;
    }
 }

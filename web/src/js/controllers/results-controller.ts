@@ -67,4 +67,18 @@ export default class ResultsController {
          ? this.selectedBookmarks.add(id)
          : this.selectedBookmarks.remove(id);
    }
+
+   public get blockListings() {
+      return this.listingsCollectionView.blockListings;
+   }
+   public set blockListings(value: boolean) {
+      this.listingsCollectionView.blockListings = value;
+   }
+
+   public get fullSummaries() {
+      return this.listingsCollectionView.fullSummaries;
+   }
+   public set fullSummaries(value: boolean) {
+      this.listingsCollectionView.fullSummaries = value;
+   }
 }

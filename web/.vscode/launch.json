@@ -10,7 +10,7 @@
          "request": "launch",
          "name": "Launch Chrome against localhost",
          // ${fileBasename}
-         "url": "http://localhost:3000/index.html",
+         "url": "http://localhost:3000/index.html?mode=sample",
          "webRoot": "${workspaceFolder}"
       }
    ]

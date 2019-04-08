@@ -9,6 +9,10 @@ import ResultsController from "../controllers/results-controller";
 import SelectedItems, {
    SelectionChangedEventArgs
 } from "../models/selected-items";
+import {
+   GlobalSettings,
+   SettingChangedEventArgs
+} from "../models/global-settings";
 
 export interface ILinkTagChangedEventArgs extends ITagChangedEventArgs {
    link: ILinkData;
@@ -23,20 +27,25 @@ export default class ListingsCollectionView extends View {
    // Used for tracking changes
    public fullResults: Bookmarks;
 
-   private resultsChangedCallback: (sender: FilterModel) => void;
-   private tagChangedCallback: (
+   private resultsChangedHandler: (sender: FilterModel) => void;
+   private tagChangedHandler: (
       sender: TagEditorView,
       args: ITagChangedEventArgs
    ) => Promise<void>;
 
-   private selectionChangedCallback: (
+   private selectionChangedHandler: (
       sender: SelectedItems,
       args: SelectionChangedEventArgs
    ) => void;
 
-   private bookmarkChangedCallback: (
+   private bookmarkChangedHandler: (
       sender: BookmarkApi,
       args: IActionEventArgs
+   ) => void;
+
+   private settingChangedHandler: (
+      _: GlobalSettings,
+      args: SettingChangedEventArgs
    ) => void;
 
    constructor(
@@ -61,22 +70,33 @@ export default class ListingsCollectionView extends View {
    }
 
    private setupHandlers() {
-      this.resultsChangedCallback = this.onFilterChanged.bind(this);
-      this.tagChangedCallback = this.onTagsChanged.bind(this);
-      this.selectionChangedCallback = this.onSelectionChanged.bind(this);
-      this.bookmarkChangedCallback = this.onBookmarkChanged.bind(this);
+      this.resultsChangedHandler = this.onFilterChanged.bind(this);
+      this.tagChangedHandler = this.onTagsChanged.bind(this);
+      this.selectionChangedHandler = this.onSelectionChanged.bind(this);
+      this.bookmarkChangedHandler = this.onBookmarkChanged.bind(this);
+      this.settingChangedHandler = this.onSettingChanged.bind(this);
    }
 
    private wireHandlers() {
       this.filterModel.resultsChangedEvent.subscribe(
-         this.resultsChangedCallback
+         this.resultsChangedHandler
       );
-      this.tagEditor.changeEvent.subscribe(this.tagChangedCallback);
+      this.tagEditor.changeEvent.subscribe(this.tagChangedHandler);
       this.selectedItems.selectionChangedEvent.subscribe(
-         this.selectionChangedCallback,
+         this.selectionChangedHandler,
          true
       );
-      this.api.actionEvent.subscribe(this.bookmarkChangedCallback);
+      this.api.actionEvent.subscribe(this.bookmarkChangedHandler);
+      GlobalSettings.settingChangedEvent.subscribe(this.settingChangedHandler);
+   }
+
+   private onSettingChanged(_: GlobalSettings, args: SettingChangedEventArgs) {
+      if (args.key === "block-listings") {
+         this.$root.toggleClass("block-listings", args.value);
+         this.refresh();
+      } else if (args.key === "full-summaries") {
+         this.$root.toggleClass("full-summaries", args.value);
+      }
    }
 
    private onBookmarkChanged(_: BookmarkApi, args: IActionEventArgs) {
@@ -124,7 +144,6 @@ export default class ListingsCollectionView extends View {
       }
 
       if (this.fullResults !== this.filterModel.fullResults) {
-         this.fullResults = this.filterModel.fullResults;
          this.updateAllViews();
       }
 
@@ -133,6 +152,10 @@ export default class ListingsCollectionView extends View {
       this.tagEditor.whitelist = this.filterModel.filteredResults.tagList;
    }
 
+   /**
+    *
+    * @param id (Un)Highlights the selected bookmark if necessary.
+    */
    refreshViewSelection(id: string) {
       this.listingViews[id].refreshSelection();
    }
@@ -148,8 +171,8 @@ export default class ListingsCollectionView extends View {
    }
 
    /**
-    *
-    * @param {Bookmarks} fullResults
+    * Adds, updates, and removes bookmark listings as necessary to display the new result set.
+    * @param {Bookmarks} fullResults The current set of bookmarks to display
     */
    updateAllViews() {
       const fullResults = this.filterModel.fullResults;
@@ -204,5 +227,20 @@ export default class ListingsCollectionView extends View {
 
    set autoComplete(value) {
       this.tagEditor.whitelist = value || [];
+   }
+
+   get blockListings() {
+      return this.$root.hasClass("block-listings");
+   }
+   set blockListings(value: boolean) {
+      this.$root.toggleClass("block-listings", value);
+      this.refresh();
+   }
+
+   get fullSummaries() {
+      return this.$root.hasClass("full-summaries");
+   }
+   set fullSummaries(value: boolean) {
+      this.$root.toggleClass("full-summaries", value);
    }
 }

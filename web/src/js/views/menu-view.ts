@@ -40,6 +40,18 @@ export class MenuView extends View {
    set dataSource(value: string) {
       $("#api-label").text(value ? `[${value}]` : "");
    }
+   get fullSummaries() {
+      return $("#cb-show-full-summaries").is("#checked");
+   }
+   set fullSummaries(value: boolean) {
+      $("#cb-show-full-summaries").prop("checked", value);
+   }
+   get blockListings() {
+      return $("#cb-show-block-listings").is(":checked");
+   }
+   set blockListings(value: boolean) {
+      $("#cb-show-block-listings").prop("checked", value);
+   }
 
    addSubViews() {
       this.andFilterView = new FilterTagView(this.controller, "and", {
@@ -66,45 +78,22 @@ export class MenuView extends View {
       });
    }
 
-   get fullSummaries() {
-      return $("#cb-show-full-summaries").is("#checked");
-   }
-   set fullSummaries(value: boolean) {
-      $("#cb-show-full-summaries").prop("checked", value);
-   }
-   get blockListings() {
-      return $("#cb-show-block-listings").is(":checked");
-   }
-   set blockListings(value: boolean) {
-      $("#cb-show-block-listings").prop("checked", value);
-   }
-
    private wireEventHandlers() {
       // Input events
       //$(".dropdown-menu div").btnclick(_ => {}, true, true);
 
       $("#refresh-links").btnclick(() => this.controller.refreshResults());
-
       $("#btn-clear-filters").btnclick(() => this.controller.resetFilters());
+      $("#btn-show-settings").btnclick(_ => $("#settings-modal").modal({}));
 
-      $("#btn-show-settings").btnclick(_ => {
-         $("#settings-modal").modal({});
-      });
-
-      $("#cb-show-full-details").change((e: JQuery.ChangeEvent) => {
-         new Promise(res => {
-            const value = (e.target as HTMLInputElement).checked;
-            GlobalSettings.setting("full-summaries", value);
-            res();
-         });
+      $("#cb-show-full-summaries").change((e: JQuery.ChangeEvent) => {
+         const value = (e.target as HTMLInputElement).checked;
+         GlobalSettings.setting("full-summaries", value);
       });
 
       $("#cb-show-block-listings").change((e: JQuery.ChangeEvent) => {
-         new Promise(res => {
-            const value = (e.target as HTMLInputElement).checked;
-            GlobalSettings.setting("block-listings", value);
-            res();
-         });
+         const value = (e.target as HTMLInputElement).checked;
+         GlobalSettings.setting("block-listings", value);
       });
 
       // Model events
@@ -112,11 +101,14 @@ export class MenuView extends View {
          this.resultsChanged.bind(this)
       );
 
-      GlobalSettings.settingChangedEvent.subscribe((sender, args) => {
-         if (args.key === "full-summaries") {
-            this.fullSummaries = args.value;
-         } else if (args.key === "block-listings") {
-            this.blockListings = args.value;
+      GlobalSettings.settingChangedEvent.subscribe((_, args) => {
+         switch (args.key) {
+            case "full-summaries":
+               this.fullSummaries = args.value;
+               break;
+            case "block-listings":
+               this.blockListings = args.value;
+               break;
          }
       });
    }

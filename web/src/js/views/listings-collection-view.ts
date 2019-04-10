@@ -55,11 +55,7 @@ export default class ListingsCollectionView extends View {
       private readonly selectedItems: SelectedItems,
       public readonly settings: IListingViewSettings = {}
    ) {
-      super(
-         $.extend(settings, {
-            showBackgroundImages: true
-         })
-      );
+      super($.extend(settings, { showBackgroundImages: true }));
 
       this.setupHandlers();
       this.wireHandlers();
@@ -241,6 +237,7 @@ export default class ListingsCollectionView extends View {
       return this.$root.hasClass("full-summaries");
    }
    set fullSummaries(value: boolean) {
+      this.$root.find(".summary.full").removeClass("full");
       this.$root.toggleClass("full-summaries", value);
    }
 }

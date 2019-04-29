@@ -19,9 +19,9 @@ export interface ILinkChangedEventArgs {
 }
 
 export default class ListingView extends View {
-   public linkChangedEvent = new TypedEvent<ListingView, ILinkChangedEventArgs>(
-      this
-   );
+
+   public linkChangedEvent = new TypedEvent<ListingView, ILinkChangedEventArgs>(this);
+   private imageCacher = new ImageCacher();
 
    /**
     * @param link
@@ -34,14 +34,7 @@ export default class ListingView extends View {
       private controller: ResultsController,
       public settings: IListingViewSettings
    ) {
-      super(
-         $.extend(
-            {
-               showBackgroundImages: true
-            },
-            settings
-         )
-      );
+      super($.extend({ showBackgroundImages: true }, settings));
       this.update(link);
    }
 
@@ -103,7 +96,6 @@ export default class ListingView extends View {
                   <button type="button" class="btn btn-primary btn-sm tag-edit-complete">Finished</button>
                </div>
             </div>
-
          </div>`
       );
    }
@@ -124,15 +116,10 @@ export default class ListingView extends View {
       this.$root.attr("id", `item_${link.item_id}`).data("item", link);
 
       // Favicon
-      let iconUrl = this.favicon(link.resolved_url);
-      iconUrl = this.cachedImageUrl(iconUrl);
       const $iconContainer = this.$root.find(".icon-container");
-      this.attachImage(iconUrl, $iconContainer);
-      // .off("load")
-      // .one("load", function() {
-      //    $(this).toggle((<HTMLImageElement>this).naturalWidth > 1);
-      // })
-      // .attr("src", iconUrl);
+      let faviconUrl = this.faviconUrl(link.resolved_url);
+      const faviconRequest = new ImageRequest(faviconUrl);
+      this.attachLoadedImage($iconContainer, faviconRequest, this.imageCacher.emptyPixel);
 
       // Domain label
       this.$root.find(".domain").text(domain);
@@ -162,15 +149,14 @@ export default class ListingView extends View {
          );
 
       // Summary
-
       const summary = link.excerpt || "";
       const authors = (link.authors || []).join(", ");
       this.$root
          .find(".summary")
-         .dblclick(function(e) {
+         .dblclick(function (e) {
             e.preventDefault();
          })
-         .one("click", function(e) {
+         .one("click", function (e) {
             $(this).addClass("full");
          })
          .text(`${summary}${authors ? " -" : ""}${authors}`);
@@ -209,22 +195,18 @@ export default class ListingView extends View {
          .btnclick(async () => await this.detachTagEditor());
 
       // Site side image
-      const $siteImg = this.$root.find(".site-img");
+      // Hide images for block display
       if (!isBlock) {
-         let siteImgUrl =
-            link.top_image_url || link.image || this.favicon(link.resolved_url);
-
+         let siteImgUrl = link.top_image_url || link.image || faviconUrl;
          if (siteImgUrl) {
-            siteImgUrl = this.cachedImageUrl(siteImgUrl, {
-               w: "64",
-               errorredirect: "https://i.imgur.com/gn0z42M.png"
-            });
-
-            this.attachImage(siteImgUrl, $siteImg);
+            const $siteImg = this.$root.find(".site-img");
+            const request = new CachedImageRequest(siteImgUrl, { w: "64" });
+            const fallback = new ImageRequest("https://i.imgur.com/gn0z42M.png");
+            this.attachLoadedImage($siteImg, request, fallback);
          }
       }
-      // Selection status
 
+      // Selection status
       this.$root.off("mousedown").on("mousedown", event => {
          // Double click to select the bookmark but prevent text being selected
          if (event.detail == 2) {
@@ -308,11 +290,16 @@ export default class ListingView extends View {
       this.$root.removeClass("edit-tags");
    }
 
-   private favicon(url: string) {
-      // Google blocks "trackers" sometimes :(
-      // return `https://s2.googleusercontent.com/s2/favicons?domain_url=${url}`;
-
-      return `//${this.domain(url)}/favicon.ico`;
+   private faviconUrl(url: string) {
+      const domain = this.domain(url);
+      switch (<string>"ddg") {
+         case "google":
+            return `https://s2.googleusercontent.com/s2/favicons?domain_url=${domain}`;
+         case "ddg":
+            return `https://icons.duckduckgo.com/ip2/${domain}.ico`;
+         default:
+            return `//${domain}/favicon.ico`;
+      }
    }
 
    private domain(url: string) {
@@ -323,57 +310,12 @@ export default class ListingView extends View {
          .split(/[\/?#]/)[0];
    }
 
-   private cachedImageUrl(
-      url: string,
-      options: { [key: string]: string } = {},
-      encodeQs = false
-   ) {
-      options.url = url.replace(/^https?:/, "");
-
-      options = $.extend(
-         { errorredirect: "https://i.imgur.com/9SzLuvf.png" },
-         options
-      );
-
-      const proxyEmpty = false;
-      if (!url) {
-         if (proxyEmpty) {
-            options.url = options.errorredirect;
-         } else {
-            // Warning: ignores options
-            return options.errorredirect;
-         }
-      }
-
-      // Encoding disabled
-      const encode = encodeQs && false ? encodeURIComponent : (s: string) => s;
-      const qs = $.map(options, (v, k) => `${k}=${encode(v)}`);
-      return `https://images.weserv.nl/?${qs.join("&")}`;
-   }
-
-   private attachImage(
-      src: string,
+   private async attachLoadedImage(
       $target: JQuery<HTMLElement>,
-      hideIfSinglePixel = true
+      ...sources: ImageRequest[]
    ) {
-      this.imageLoadAsync(src).then(img => {
-         if (
-            !hideIfSinglePixel ||
-            img.naturalWidth > 1 ||
-            img.naturalHeight > 1
-         ) {
-            $target.empty().append(img);
-         }
-      });
-   }
-
-   private imageLoadAsync(src: string) {
-      return new Promise<HTMLImageElement>((resolve, reject) => {
-         const img = new Image();
-         img.onload = () => resolve(img);
-         img.onerror = e => reject(e);
-         img.src = src;
-      });
+      const img = await this.imageCacher.loadImage(...sources);
+      $target.empty().append(img);
    }
 
    private displayTags(tags: string[]) {
@@ -385,5 +327,76 @@ export default class ListingView extends View {
                .text(t)
          )
       );
+   }
+}
+
+class ImageRequest {
+   constructor(public url: string) { }
+   get() {
+      return new Promise<HTMLImageElement>((resolve, reject) => {
+         const img = new Image();
+         img.onload = () => resolve(img);
+         img.onerror = e => reject(e);
+         img.src = this.url;
+      });
+   }
+}
+
+class CachedImageRequest extends ImageRequest {
+   constructor(url: string, options: { [key: string]: string } = {}) {
+      options.url = url.replace(/^https?:/, "");
+      const queryString = $.map(options, (v, k) => `${k}=${v}`);
+      super(`https://images.weserv.nl/?${queryString.join("&")}`);
+   }
+}
+
+
+class ImageCacher {
+   public readonly emptyPixel = new ImageRequest("https://i.imgur.com/9SzLuvf.png");
+   private cachedImages: { [url: string]: Promise<HTMLImageElement> | false } = {};
+
+   /**
+    * Requests an image with a fallback
+    */
+   async loadImage(...requests: ImageRequest[]) {
+      let lastError: any;
+      for (let request of requests) {
+         try {
+            return await this.cachedOrRemoteImage(request);
+         } catch (err) {
+            lastError = err;
+         }
+      }
+      throw lastError;
+   }
+
+   private async cachedOrRemoteImage(request: ImageRequest) {
+      const cachedImage = this.cachedImages[request.url];
+      if (cachedImage === false) {
+         throw new Error(`Image (${request.url}) has previously failed to load.`);
+      }
+      if (cachedImage) {
+         const img = await cachedImage;
+         return this.cloneImage(img);
+      }
+      return await this.makeRequest(request);
+   }
+
+   private async makeRequest(request: ImageRequest) {
+      try {
+         const fetch = request.get();
+         this.cachedImages[request.url] = fetch;
+         return await fetch;
+      } catch (err) {
+         this.cachedImages[request.url] = false;
+         throw err;
+      }
+   }
+
+   // Creates new image elements per source url for reuse
+   private cloneImage(element: HTMLImageElement) {
+      const img = new Image(element.width, element.height);
+      img.src = element.src;
+      return img;
    }
 }

@@ -30,7 +30,7 @@ export class BookmarkApi {
       return new BookmarkApi(this.dataSource);
    }
 
-   destroy() {}
+   destroy() { }
 
    readonly dataSourceChangedEvent = new TypedEvent<BookmarkApi, void>(this);
    readonly retrieveEvent = new TypedEvent<BookmarkApi, IRetrieveEventArgs>(
@@ -72,7 +72,7 @@ export class ApiFactory {
    static pocketDs(accessToken: string = "", forceLogin: boolean = false) {
       const callbackUrl = `${
          window.location.hostname !== "localhost" ? "https" : "http"
-      }://${window.location.host}${window.location.pathname}`;
+         }://${window.location.host}${window.location.pathname}?mode=pocket&authed=1`;
       return new PocketDataSource({
          redirectUrl: callbackUrl,
          accessToken,
@@ -114,11 +114,6 @@ export class ApiFactory {
             return this.pocketDs(params["access"], params["login"] === "1");
       }
    }
-
-   static async createApi(datasource: ApiDataSource) {
-      await datasource.authorize();
-      return new BookmarkApi(datasource);
-   }
 }
 
 export interface IRetrieveEventArgs {
@@ -141,7 +136,7 @@ export abstract class ApiDataSource {
    abstract async action(actions: IActionParameters[]): Promise<void>;
 
    async authorize(): Promise<void> {
-      return await $.when();
+      return;
    }
 
    /* OVERWRITE THESE */
@@ -242,7 +237,7 @@ export class PocketDataSource extends ApiDataSource {
       try {
          if (this.connected) {
             return;
-         } else if (this.requestToken) {
+         } else if (this.requestToken && querystring()["authed"] === "1") {
             await this.getAccessTokenFromRequestCode();
          } else {
             // STEPS 2/3 of api auth documentation
@@ -328,7 +323,7 @@ export class PocketDataSource extends ApiDataSource {
    private redirectUserToPocketAuth() {
       window.location.href = `https://getpocket.com/auth/authorize?request_token=${
          this.requestToken
-      }&redirect_uri=${this.settings.redirectUrl}`;
+         }&redirect_uri=${encodeURIComponent(this.settings.redirectUrl)}`;
    }
 
    /**
@@ -337,7 +332,7 @@ export class PocketDataSource extends ApiDataSource {
     * (Step 5 from https://getpocket.com/developer/docs/authentication)
     */
    private async getAccessTokenFromRequestCode() {
-      console.log("exchangeRequestTokenForAccessToken");
+      console.log("getAccessTokenFromRequestCode");
       if (this.accessToken) {
          // Use the existing access token.
          return $.when();
@@ -346,6 +341,7 @@ export class PocketDataSource extends ApiDataSource {
       if (!this.requestToken) {
          // The request token wasn't accepted.
          // TODO: move index.html to setting
+         console.error("Request token missing, returning to index.html.");
          window.location.href = "index.html";
          return;
       }
@@ -355,12 +351,13 @@ export class PocketDataSource extends ApiDataSource {
          response = await this.callPocket("oauth/authorize", {
             code: this.requestToken
          });
+         this.username = response.username;
+         this.accessToken = response.access_token;
       } catch (err) {
          this.requestToken = null;
+         this.accessToken = null;
          throw err;
       }
-      this.username = response.username;
-      this.accessToken = response.access_token;
    }
 
    /**
@@ -455,7 +452,7 @@ export class PocketLinkEditor {
    private parameters: IActionParameters[] = [];
    private undo: (() => void)[] = [];
 
-   constructor(private api: BookmarkApi) {}
+   constructor(private api: BookmarkApi) { }
 
    async saveChanges() {
       if (this.parameters.length) {

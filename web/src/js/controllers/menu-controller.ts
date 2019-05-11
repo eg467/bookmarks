@@ -11,7 +11,7 @@ export class MenuController {
    private menuView: MenuView;
 
    constructor(
-      public pocketApi: BookmarkApi,
+      public bookmarkApi: BookmarkApi,
       public filterModel: FilterModel,
       public selectedBookmarks: SelectedItems,
       public settings: any
@@ -32,17 +32,17 @@ export class MenuController {
    }
 
    public async refreshResults() {
-      await this.pocketApi.retrieve({});
+      await this.bookmarkApi.retrieve({});
    }
 
    private updateUser() {
-      this.menuView.dataSource = this.pocketApi.dataSource.label;
-      this.menuView.username = this.pocketApi.username;
+      this.menuView.dataSource = this.bookmarkApi.dataSource.label;
+      this.menuView.username = this.bookmarkApi.username;
    }
 
    showPopup(selector: string) {
       const controller = new SettingsController(
-         this.pocketApi,
+         this.bookmarkApi,
          this.filterModel,
          this.selectedBookmarks
       );

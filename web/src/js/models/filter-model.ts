@@ -1,9 +1,9 @@
 import { SetOps, eif } from "../utils";
-import { PocketDataSource, ILinkData, BookmarkApi } from "./pocket-api";
+import { PocketDataSource, ILinkData, BookmarkApi, IRetrieveEventArgs } from "./pocket-api";
 import { Bookmarks } from "./Bookmarks";
 import { TypedEvent } from "../views/view";
 
-export class FilterChangedEventArgs {}
+export class FilterChangedEventArgs { }
 
 export default class FilterModel {
    private settings: any;
@@ -19,8 +19,10 @@ export default class FilterModel {
    public filteredResults: Bookmarks;
    public fullResults: Bookmarks;
 
-   constructor(public api: BookmarkApi, settings: any) {
-      this.api = api;
+   private _api: BookmarkApi;
+   private dataRetrievedHandler: (sender: BookmarkApi, args: IRetrieveEventArgs) => void;
+
+   constructor(settings: any) {
       this.settings = $.extend(
          {
             mode: FilterMode.Filter
@@ -28,38 +30,37 @@ export default class FilterModel {
          settings
       );
 
+      this.dataRetrievedHandler = this.onDataRetrieved.bind(this);
       this.filters = {
          and: new AndTagFilter(),
          or: new OrTagFilter(),
          not: new NotTagFilter(),
          content: new ContentFilter()
       };
+   }
 
-      //this.filteredResultsChanged = $.Callbacks("memory unique");
-      this.api.retrieveEvent.subscribe((s, args) => {
-         this.fullResults = args.results;
-         this.runAllFilters();
-      }, true);
+   get api() {
+      return this._api;
+   }
+
+   set api(value: BookmarkApi) {
+      if (this._api) {
+         this._api.retrieveEvent.unsubscribe(this.dataRetrievedHandler);
+      }
+      this._api = value;
+      if (this._api) {
+         this._api.retrieveEvent.subscribe(this.dataRetrievedHandler, true);
+      }
+   }
+
+   private onDataRetrieved(sender: BookmarkApi, args: IRetrieveEventArgs) {
+      this.fullResults = args.results;
+      this.runAllFilters();
    }
 
    get canFilter() {
       return !!this.fullResults;
    }
-
-   // toggleFilter(key: "or" | "and" | "not" | "content", enabled: boolean) {
-   //    if (!this.canFilter) {
-   //       return;
-   //    }
-   //    const filter = this.filters[key];
-   //    if (filter.enabled == enabled) {
-   //       return;
-   //    }
-   //    if ((filter.enabled = enabled)) {
-   //       this.applyFilter(key, filter.currentQuery);
-   //    } else {
-   //       this.generateFilteredResults();
-   //    }
-   // }
 
    enabledFilters() {
       const allFilters = $.map(this.filters, v => v);
@@ -114,7 +115,7 @@ export default class FilterModel {
  * This is its own class because the results depend on combined filter states.
  */
 class WhitelistPopulator {
-   constructor(private filterModel: FilterModel) {}
+   constructor(private filterModel: FilterModel) { }
 
    private queriedTags: Set<string>;
    private queriedTagsArr: string[];
@@ -215,7 +216,7 @@ abstract class Filter<TQuery> implements IFilter {
    public mode = FilterMode.Filter;
    public results: Set<string>;
 
-   constructor(public key: string) {}
+   constructor(public key: string) { }
 
    private equals<T>(a: T, b: T) {
       if (a === b) {

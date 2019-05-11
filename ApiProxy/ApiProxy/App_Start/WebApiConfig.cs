@@ -11,7 +11,7 @@ namespace ApiProxy
         public static void Register(HttpConfiguration config)
         {
 #if DEBUG
-            var cors = new EnableCorsAttribute("http://localhost:3000,https://bookmarks.gldnr.com", "*", "*");
+            var cors = new EnableCorsAttribute("http://localhost:3000,https://localhost:3000,https://bookmarks.gldnr.com", "*", "*");
             config.EnableCors(cors);
 #endif
 

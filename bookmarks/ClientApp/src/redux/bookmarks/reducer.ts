@@ -3,6 +3,21 @@ import * as pocketActions from '../pocket/bookmarks/actions';
 import { createSelector } from 'reselect';
 import { SetOps } from '../../utils';
 import { BookmarkSortField, BookmarkCollection, BookmarkData } from './bookmarks';
+import { BookmarkKeys, BookmarkPersister, TagModification, noopBookmarkPersister } from '../../api/bookmark-io';
+import pocketApi from '../../api/pocket-api';
+import { Book } from '@material-ui/icons';
+import { noop } from 'react-select/src/utils';
+import { AppState } from '../root/reducer';
+
+export enum BookmarkSourceType {
+    none, pocket, json, savedJson, externalJson, browserBookmarks
+}
+
+export interface BookmarkSource {
+    type: BookmarkSourceType;
+    description: string;
+    bookmarkSetIdentifier?: string;
+}
 
 export interface BookmarkState {
     bookmarks: BookmarkCollection;
@@ -19,7 +34,8 @@ export interface BookmarkState {
         notFilterTags: string[];
         /** Matching bookmarks must this in the title, domain, excerpt, etc. */
         contentFilter: string;
-    }
+    },
+    source: BookmarkSource;
 }
 
 export const initialState: BookmarkState = {
@@ -33,22 +49,140 @@ export const initialState: BookmarkState = {
         notFilterTags: [],
         orFilterTags: [],
         contentFilter: "",
+    },
+    source: {
+        description: "Not loaded",
+        type: BookmarkSourceType.none,
     }
 };
+
+const toArray = (keys: BookmarkKeys) => Array.isArray(keys) ? keys : [keys];
+const modifyBookmarks = (keys: BookmarkKeys, oldBookmarks: BookmarkCollection, modifier: (bookmark: BookmarkData) => BookmarkData) => {
+    const bookmarks: BookmarkCollection = { ...oldBookmarks };
+    for (let key of toArray(keys)) {
+        bookmarks[key] = modifier(bookmarks[key]);
+    }
+    return bookmarks;
+}
+const ciCollator = new Intl.Collator("en-US", { sensitivity: "accent" });
+const ciCompare = (a: string, b: string) => ciCollator.compare(a, b) === 0;
+const ciTagIndex = (q: string, tags: string[]) => tags.findIndex(t => ciCompare(t, q));
+const ciDistinct = (items: string[]): string[] => {
+    var deduped = [];
+    var set = new Set();
+
+    for (let x of items) {
+        const key = x.toLocaleUpperCase();
+        if (!set.has(key)) {
+            set.add(key);
+            deduped.push(x);
+        }
+    }
+    return deduped;
+}
 
 export default function (state: BookmarkState = initialState, action: actions.BookmarkAction | pocketActions.PocketBookmarksAction): BookmarkState {
     switch (action.type) {
         case pocketActions.ActionType.FETCH_BOOKMARKS_SUCCESS:
-            return { ...state, bookmarks: action.response.bookmarks }
+            const { bookmarks, source } = action.response;
+            return { ...state, bookmarks, source };
 
-        case actions.ActionType.SHOW_BOOKMARKS:
+        case actions.ActionType.SHOW:
             return { ...state, bookmarks: action.bookmarks };
 
-        case actions.ActionType.SORT_BOOKMARKS:
-            const sort = { field: action.field, ascending: action.ascendingOrder };
-            return { ...state, sort };
+        case actions.ActionType.REMOVE_SUCCESS:
+            {
+                const bookmarks: BookmarkCollection = {
+                    ...state.bookmarks,
+                };
 
-        case actions.ActionType.SET_AND_TAGS:
+                for (let id of toArray(action.payload.keys)) {
+                    delete bookmarks[id];
+                }
+
+                return { ...state, bookmarks };
+            }
+        case actions.ActionType.ARCHIVE_SUCCESS:
+            {
+                const { keys, status } = action.payload;
+                const bookmarks = modifyBookmarks(keys, state.bookmarks, b => ({ ...b, archive: status }));
+                return { ...state, bookmarks };
+            }
+        case actions.ActionType.FAVORITE_SUCCESS:
+            {
+                const { keys, status } = action.payload;
+                const bookmarks = modifyBookmarks(keys, state.bookmarks, b => ({ ...b, favorite: status }));
+                return { ...state, bookmarks };
+            }
+        case actions.ActionType.MODIFY_TAGS_SUCCESS:
+            {
+                const { keys, operation, tags } = action.payload;
+
+                const bmOps = {
+                    [TagModification.add]:
+                        (bm: BookmarkData, modifiedTags: string[]) =>
+                            ({ ...bm, tags: ciDistinct(bm.tags.concat(modifiedTags)) }),
+                    [TagModification.remove]:
+                        (bm: BookmarkData, modifiedTags: string[]) => {
+                            const { tags: oldTags } = bm;
+                            const shouldKeep = (t: string) => ciTagIndex(t, modifiedTags) === -1;
+                            return { ...bm, tags: oldTags.filter(shouldKeep) };
+                        },
+                    [TagModification.set]: (bm: BookmarkData, modifiedTags: string[]) =>
+                        ({ ...bm, tags: ciDistinct(modifiedTags) })
+                }
+
+                const selectedOp = bmOps[operation];
+                const newTags = tags.split(",");
+
+                const bookmarks = modifyBookmarks(keys, state.bookmarks, b => selectedOp(b, newTags));
+                return { ...state, bookmarks };
+            }
+        case actions.ActionType.RENAME_TAG_SUCCESS:
+            {
+                const { newTag, oldTag } = action.payload;
+
+                const bookmarks = modifyBookmarks(
+                    Object.keys(state.bookmarks),
+                    state.bookmarks,
+                    b => {
+                        const existing = ciTagIndex(oldTag, b.tags);
+                        if (existing === -1) { return b; }
+
+                        const newTags = [...b.tags];
+                        newTags[existing] = newTag;
+                        return { ...b, tags: newTags };
+                    }
+                );
+
+                return { ...state, bookmarks };
+            }
+
+        case actions.ActionType.DELETE_TAG_SUCCESS:
+            {
+                const { tag } = action.payload;
+
+                const bookmarks = modifyBookmarks(
+                    Object.keys(state.bookmarks),
+                    state.bookmarks,
+                    b => {
+                        const existing = ciTagIndex(tag, b.tags);
+                        return existing >= 0
+                            ? { ...b, tags: b.tags.filter((_, i) => i !== existing) }
+                            : b;
+                    }
+                );
+
+                return { ...state, bookmarks };
+            }
+
+        case actions.ActionType.SORT:
+            {
+                const sort = { field: action.field, ascending: action.ascendingOrder };
+                return { ...state, sort };
+            }
+
+        case actions.ActionType.FILTER_AND_TAGS:
             return {
                 ...state,
                 filters: {
@@ -57,7 +191,7 @@ export default function (state: BookmarkState = initialState, action: actions.Bo
                 }
             };
 
-        case actions.ActionType.SET_OR_TAGS:
+        case actions.ActionType.FILTER_OR_TAGS:
             return {
                 ...state,
                 filters: {
@@ -66,7 +200,7 @@ export default function (state: BookmarkState = initialState, action: actions.Bo
                 }
             };
 
-        case actions.ActionType.SET_NOT_TAGS:
+        case actions.ActionType.FILTER_NOT_TAGS:
             return {
                 ...state,
                 filters: {
@@ -80,8 +214,8 @@ export default function (state: BookmarkState = initialState, action: actions.Bo
     }
 }
 
-export const selectBookmarks = (state: BookmarkState) => state.bookmarks;
-export const selectBookmark = (state: BookmarkState, id: string) => state.bookmarks[id];
+export const selectBookmarks = (state: AppState) => state.bookmarks.bookmarks;
+export const selectBookmark = (state: AppState, id: string) => state.bookmarks.bookmarks[id];
 
 export const selectBookmarkList = createSelector([selectBookmarks], bookmarks => {
     return Object.keys(bookmarks).map(k => bookmarks[k])
@@ -99,12 +233,34 @@ export const selectAllTags = createSelector([selectBookmarkList], bookmarks => {
     return tags;
 });
 
+// TODO: Change the below selectors to point from the root state instead of relative BookmarkState.
+
+// SOURCE
+
+const selectBookmarkSource = (state: AppState) => state.bookmarks.source;
+const selectBookmarkPersister = createSelector([selectBookmarkSource], src => {
+    if (!src) {
+        return noopBookmarkPersister as BookmarkPersister;
+    }
+
+    switch (src.type) {
+        case BookmarkSourceType.pocket:
+            return pocketApi as BookmarkPersister;
+        case BookmarkSourceType.savedJson:
+            // TODO: create and change this to a jsonbin persister.
+            return noopBookmarkPersister as BookmarkPersister;
+
+        default:
+            return noopBookmarkPersister as BookmarkPersister;
+    }
+});
+
 // FILTERS
 
-const selectAndFilter = (state: BookmarkState) => state.filters.andFilterTags;
-const selectOrFilter = (state: BookmarkState) => state.filters.orFilterTags;
-const selectNotFilter = (state: BookmarkState) => state.filters.notFilterTags;
-const selectContentFilter = (state: BookmarkState) => state.filters.contentFilter;
+const selectAndFilter = (state: AppState) => state.bookmarks.filters.andFilterTags;
+const selectOrFilter = (state: AppState) => state.bookmarks.filters.orFilterTags;
+const selectNotFilter = (state: AppState) => state.bookmarks.filters.notFilterTags;
+const selectContentFilter = (state: AppState) => state.bookmarks.filters.contentFilter;
 
 const _findMatchingBookmarks = (bookmarks: BookmarkData[], shouldFilter: boolean, filter: (b: BookmarkData) => boolean) =>
     shouldFilter
@@ -169,7 +325,7 @@ const selectFilteredBookmarkIds = createSelector([
 
 // SORTING
 
-const selectSort = (state: BookmarkState) => state.sort;
+const selectSort = (state: AppState) => state.bookmarks.sort;
 
 const selectSortedBookmarkIds = createSelector(
     [selectBookmarks, selectFilteredBookmarkIds, selectSort],
@@ -196,11 +352,12 @@ const selectSortedBookmarkIds = createSelector(
 
 // COMBINED SELECTORS
 
-export const bookmarkSelectors = {
+export const selectors = {
+    selectBookmarkSource, selectBookmarkPersister,
     selectBookmarks, selectBookmark, selectAllTags, selectBookmarkIds,
     selectAndFilter, selectOrFilter, selectNotFilter, selectContentFilter,
     selectAndMatchedBookmarkIds, selectOrMatchedBookmarkIds, selectNotMatchedBookmarkIds,
-    selectContentMatchedBookmarkIds, selectFilteredBookmarkIds, selectSort, selectSortedBookmarkIds,
+    selectContentMatchedBookmarkIds, selectFilteredBookmarkIds, selectSort, selectSortedBookmarkIds
 }
 
 // END COMBINED SELECTORS

@@ -3,7 +3,7 @@ import { ActionMeta, ValueType } from 'react-select';
 import { connect } from 'react-redux';
 import { AppState } from '../../redux/root/reducer';
 import * as bookmarkActions from '../../redux/bookmarks/actions';
-import { bookmarkSelectors as bookmarkSelectors } from "../../redux/bookmarks/reducer";
+import { selectors as selectors } from "../../redux/bookmarks/reducer";
 import { Dispatch } from 'redux';
 import Select from 'react-select';
 
@@ -46,8 +46,8 @@ export const FilterTagInput: React.FC<TagFiltersProps> = (props) => {
 
 export const AndTagFilter = connect(
     (state: AppState) => ({
-        tags: bookmarkSelectors.selectAndFilter(state.bookmarks),
-        availableTags: bookmarkSelectors.selectAllTags(state.bookmarks),
+        tags: selectors.selectAndFilter(state),
+        availableTags: selectors.selectAllTags(state),
     }),
     (dispatch: Dispatch) => ({
         setTags: (tags: string[]) => dispatch(bookmarkActions.actionCreators.setAndFilter(tags)),
@@ -56,8 +56,8 @@ export const AndTagFilter = connect(
 
 export const OrTagFilter = connect(
     (state: AppState) => ({
-        tags: bookmarkSelectors.selectOrFilter(state.bookmarks),
-        availableTags: bookmarkSelectors.selectAllTags(state.bookmarks),
+        tags: selectors.selectOrFilter(state),
+        availableTags: selectors.selectAllTags(state),
     }),
     (dispatch: Dispatch) => ({
         setTags: (tags: string[]) => dispatch(bookmarkActions.actionCreators.setOrFilter(tags)),
@@ -66,8 +66,8 @@ export const OrTagFilter = connect(
 
 export const NotTagFilter = connect(
     (state: AppState) => ({
-        tags: bookmarkSelectors.selectNotFilter(state.bookmarks),
-        availableTags: bookmarkSelectors.selectAllTags(state.bookmarks),
+        tags: selectors.selectNotFilter(state),
+        availableTags: selectors.selectAllTags(state),
     }),
     (dispatch: Dispatch) => ({
         setTags: (tags: string[]) => dispatch(bookmarkActions.actionCreators.setNotFilter(tags)),

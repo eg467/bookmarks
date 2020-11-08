@@ -2,7 +2,7 @@ import React, { useEffect, memo } from 'react';
 import { connect } from "react-redux";
 import { StoreDispatch } from "../../../redux/store/configureStore";
 import { AppState } from "../../../redux/root/reducer";
-import { selectBookmark } from "../../../redux/bookmarks/reducer";
+import { selectBookmark, selectors } from "../../../redux/bookmarks/reducer";
 import Card from "@material-ui/core/Card";
 import CardMedia from "@material-ui/core/CardMedia";
 import CardHeader from "@material-ui/core/CardHeader";
@@ -12,9 +12,12 @@ import Typography from "@material-ui/core/Typography";
 import CardActions from "@material-ui/core/CardActions";
 import IconButton from "@material-ui/core/IconButton";
 import FavoriteIcon from '@material-ui/icons/Favorite';
-import ShareIcon from '@material-ui/icons/Share';
+import DeleteIcon from '@material-ui/icons/Delete';
+import ArchiveIcon from '@material-ui/icons/Archive';
 import Chip from "@material-ui/core/Chip";
 import { proxyImageSrc } from '../../images/proxied-img';
+import { actionCreators } from '../../../redux/bookmarks/actions';
+import { BookmarkKeys, TagModification } from '../../../api/bookmark-io';
 
 interface ConnectedProps extends DispatchProps, StateProps, OwnProps {
 }
@@ -26,19 +29,30 @@ interface OwnProps {
     onLoad?: () => void;
 }
 
-const mapDispatchToProps = (dispatch: StoreDispatch) => ({
+const mapDispatchToProps = (dispatch: StoreDispatch, ownProps: OwnProps) => ({
+    archive: (status: boolean) => dispatch(actionCreators.archive(ownProps.id, status)),
+    remove: () => dispatch(actionCreators.remove(ownProps.id)),
+    favorite: (status: boolean) => dispatch(actionCreators.favorite({ keys: ownProps.id, status })),
+    removeTag: (tag: string) => dispatch(actionCreators.modifyTags({ keys: ownProps.id, operation: TagModification.remove, tags: tag })),
+    addTag: (tag: string) => dispatch(actionCreators.modifyTags({ keys: ownProps.id, operation: TagModification.add, tags: tag })),
+    setTags: (tags: string) => dispatch(actionCreators.modifyTags({ keys: ownProps.id, operation: TagModification.set, tags })),
+    select: () => { /* Implement bulk selection/edit feature. */ }
 });
 type DispatchProps = ReturnType<typeof mapDispatchToProps>;
 
 const mapStateToProps = (state: AppState, ownProps: OwnProps) => ({
-    ...selectBookmark(state.bookmarks, ownProps.id),
+    bookmark: selectBookmark(state, ownProps.id),
+    persister: selectors.selectBookmarkPersister(state)
 });
 type StateProps = ReturnType<typeof mapStateToProps>;
 
 const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
     const {
-        onLoad, id, width, image, tags, title, url, excerpt,  /* , archive, authors,  favorite, id,  resolvedUrl, time_added*/
+        archive: setArchived, remove, favorite: setFavorite, removeTag, addTag, setTags, select,
+        bookmark, persister, onLoad, id, width,
     } = props;
+
+    const { image, tags, title, url, excerpt, archive, authors, favorite, resolvedUrl } = bookmark;
 
     const proxiedImage = image ? proxyImageSrc(image, width ? { w: width } : {}) : undefined;
 
@@ -86,15 +100,17 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
     const showFavicon = false;
     const showMainImage = false;
 
-
+    const handleRemoveTag = (tag: string) => persister.deleteTag ? () => { removeTag(tag); } : undefined;
 
     //return (<div>{ <a href={url}>{title}</a> }</div>);
+
+    console.log(persister);
 
     return (
         <Card>
             <CardHeader
                 avatar={
-                    showFavicon && <FaviconImg url={ url } source="duckduckgo" alt="" width={ 24} height={ 24} />
+                    showFavicon && <FaviconImg url={url} source="duckduckgo" alt="" width={24} height={24} />
                 }
                 title={title}
                 subheader={domain}
@@ -108,7 +124,7 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
                         onError={handleError}
                         image={proxiedImage}
                         style={styles.media}
-                />)) || null
+                    />)) || null
             }
 
             <CardContent>
@@ -120,16 +136,28 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
 
                 <div>
                     {!tags && (<span>NO TAGS</span>)}
-                    {tags && tags.length && tags.map(t => <Chip key={t} label={t} />)}
+                    {tags && tags.length &&
+                        tags.map(t => <Chip key={t} label={t} onDelete={handleRemoveTag(t)} />)}
                 </div>
             </CardContent>
             <CardActions disableSpacing>
-                <IconButton aria-label="Add to favorites">
-                    <FavoriteIcon />
-                </IconButton>
-                <IconButton aria-label="Share">
-                    <ShareIcon />
-                </IconButton>
+                {(persister.favorite) &&
+                    <IconButton onClick={e => setFavorite(!favorite)} aria-label="Add to favorites">
+                        <FavoriteIcon />
+                    </IconButton>
+                }
+
+                {persister.archive &&
+                    <IconButton onClick={e => setArchived(!archive)} aria-label="Archive bookmark" >
+                        <ArchiveIcon />
+                    </IconButton>
+                }
+
+                {persister.remove &&
+                    <IconButton onClick={e => { if (confirm("Are you sure?")) { remove(); } }} aria-label="Delete bookmark" style={{ color: "red" }}>
+                        <ArchiveIcon />
+                    </IconButton>
+                }
             </CardActions>
         </Card>
     );

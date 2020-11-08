@@ -28,10 +28,9 @@ export default function (state: PocketBookmarkState = initialState, action: acti
                 error: null,
             };
         case actions.ActionType.FETCH_BOOKMARKS_SUCCESS:
-            const { readonly, bookmarks } = action.response;
+            const { bookmarks } = action.response;
             return {
                 ...state,
-                readonly,
                 bookmarks,
                 loading: false,
                 error: null,
@@ -42,30 +41,6 @@ export default function (state: PocketBookmarkState = initialState, action: acti
                 bookmarks: {},
                 loading: true,
                 error: action.error,
-            };
-
-        // REMOVE BOOKMARK
-        case actions.ActionType.REMOVE_BOOKMARK:
-            return {
-                ...state,
-                loading: true,
-                error: null
-            };
-        case actions.ActionType.REMOVE_BOOKMARK_SUCCESS:
-            let id = action.payload.id;
-            const copy = { ...state.bookmarks };
-            delete copy[id];
-            return {
-                ...state,
-                bookmarks: copy,
-                loading: false,
-                error: null
-            };
-        case actions.ActionType.REMOVE_BOOKMARK_FAILURE:
-            return {
-                ...state,
-                loading: false,
-                error: action.error
             };
 
         // DEFAULT

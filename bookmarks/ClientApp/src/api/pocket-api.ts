@@ -1,5 +1,7 @@
 //import axios from 'axios';
-import { BookmarkCollection } from '../redux/bookmarks/bookmarks';
+import { BookmarkCollection, BookmarkData } from '../redux/bookmarks/bookmarks';
+import { BookmarkSourceType } from '../redux/bookmarks/reducer';
+import { AddBookmarkError, AddBookmarkInput, AddBookmarkResult, BookmarkPersister, TagModification } from './bookmark-io';
 import storage from "./local-storage";
 
 export interface PocketAuthState {
@@ -47,7 +49,9 @@ export interface AuthState {
 
 type PocketApiPage = "add" | "get" | "send" | "oauth/request" | "oauth/authorize";
 
-export class PocketApi {
+export class PocketApi implements BookmarkPersister {
+    public readonly sourceType = BookmarkSourceType.pocket;
+
     private redirectionUri: string;
 
     //public get authState() {
@@ -155,7 +159,11 @@ export class PocketApi {
         params = Object.assign({ detailType: "complete" }, params);
         return this.authenticatedCall("get", params)
             .then(results => results.data.list)
-            .then(b => this.toBookmarks(b, false));
+            .then(b => this.toBookmarks(b));
+    }
+
+    refresh() {
+        return this.retrieve({});
     }
 
     /**
@@ -164,14 +172,14 @@ export class PocketApi {
     retrieveSample() {
         return import("../data/sample.json")
             .then(results => results.content.list)
-            .then(b => this.toBookmarks(b, true));
+            .then(b => this.toBookmarks(b));
     }
 
     logout() {
         this.authStorage.clear();
     }
 
-    private toBookmarks(rawBookmarks: any, readonly: boolean) {
+    private toBookmarks(rawBookmarks: any) {
         console.log(rawBookmarks);
 
         const bookmarks: BookmarkCollection = {};
@@ -192,7 +200,7 @@ export class PocketApi {
                 excerpt: bookmark.excerpt
             };
         }
-        return { bookmarks, readonly };
+        return bookmarks;
     }
 
     /**
@@ -200,31 +208,66 @@ export class PocketApi {
      * @param actions The actions according to https://getpocket.com/developer/docs/v3/modify
      * @param accessToken An overridnig access token or none supplied to use the cached token.
      */
-    private action(actions: ActionParameters | ActionParameters[]) {
+    private bookmarkModification(actions: ActionParameters | ActionParameters[]) {
         console.log("Pocket API action", actions);
         actions = Array.isArray(actions) ? actions : [actions];
         return this.authenticatedCall("send", { actions: actions });
     }
 
-    private batchModifyActions(ids: string | string[], action: string, otherParams?: Partial<ActionParameters>) {
+    private batchModification(ids: string | string[], action: string, otherParams?: Partial<ActionParameters>) {
         if (!Array.isArray(ids)) {
             ids = [ids];
         }
         const actions = ids.map(item_id => <ActionParameters>({ item_id, action, ...otherParams }));
-        return this.action(actions);
+        return this.bookmarkModification(actions).then(r => {
+            let errors = r.action_errors;
+            if (Array.isArray(errors)) {
+                errors = errors.filter(e => e).map(e => `${e.type} (${e.message})`);
+                throw new Error(errors.join(".  ") + ".");
+            }
+
+            if (typeof r.status === "number" && r.status !== 1) {
+                throw new Error("The API request completed, but there was a server error processing that request.");
+            }
+        });
     }
 
     /* POCKET ACTIONS */
-    delete(keys: string | string[]) {
-        return this.batchModifyActions(keys, "delete");
+    async add(bookmarkSeed: AddBookmarkInput | AddBookmarkInput[]) {
+        const bookmarkSeeds: AddBookmarkInput[] = Array.isArray(bookmarkSeed) ? bookmarkSeed : [bookmarkSeed];
+
+        var actions = bookmarkSeeds.map(b => <ActionParameters>({
+            action: "add",
+            "url": b.url,
+            "tags": b.tags.join(",")
+        }));
+
+        return this.bookmarkModification(actions).then(r => {
+            const { action_results: returnedBookmarks, action_errors: actionErrors, status } = r.data;
+            var errors = actionErrors.map((e: any, i: number) => ({
+                message: `${e.type}: ${e.message}`,
+                index: i,
+                input: bookmarkSeeds[i]
+            }));
+
+            if (!status || errors.length) {
+                throw errors;
+            }
+
+            return returnedBookmarks.map((b: any) => ({ item_id: b.item_id }));
+        })
+    }
+
+    remove(keys: string | string[]) {
+        return this.batchModification(keys, "delete");
     }
 
     archive(keys: string | string[], status: boolean) {
-        return this.batchModifyActions(keys, status ? "archive" : "readd");
+        return this.batchModification(keys, status ? "archive" : "readd");
     }
 
-    favorite(key: string, status: boolean) {
-        return this.action({ item_id: key, action: status ? "favorite" : "unfavorite" });
+    favorite(keys: string | string[], status: boolean) {
+        return this.batchModification(keys, status ? "favorite" : "unfavorite");
     }
 
     /**
@@ -233,25 +276,22 @@ export class PocketApi {
      * @param tags A comma-delimited list of tags
      */
     setTags(keys: string | string[], tags: string) {
-        return this.batchModifyActions(keys, "tags_replace", { tags });
+        return this.batchModification(keys, "tags_replace", { tags });
     }
 
     /**
-     * Adds tags for bookmarks.
+     * Replaces current tags for bookmarks.
      * @param key The bookmark id
      * @param tags A comma-delimited list of tags
+     * @param operation What to do with the provided tags
      */
-    addTags(keys: string | string[], tags: string) {
-        return this.batchModifyActions(keys, "tags_add", { tags });
-    }
-
-    /**
-    * Adds tags for bookmarks.
-    * @param key The bookmark id
-    * @param tags A comma-delimited list of tags
-    */
-    removeTags(keys: string | string[], tags: string) {
-        return this.batchModifyActions(keys, "tags_remove", { tags });
+    modifyTags(keys: string | string[], tags: string, operation: TagModification) {
+        const apiCommandByOp = {
+            [TagModification.set]: "tags_replace",
+            [TagModification.add]: "tags_add",
+            [TagModification.remove]: "tags_remove",
+        }
+        return this.batchModification(keys, apiCommandByOp[operation], { tags });
     }
 
     /**
@@ -260,7 +300,7 @@ export class PocketApi {
      * @param newTag
      */
     renameTag(oldTag: string, newTag: string) {
-        return this.action({ action: "tag_rename", old_tag: oldTag, new_tag: newTag });
+        return this.bookmarkModification({ action: "tag_rename", old_tag: oldTag, new_tag: newTag });
     }
 
     /**
@@ -268,7 +308,7 @@ export class PocketApi {
       * @param tag The name of the tag to delete.
       */
     deleteTag(tag: string) {
-        return this.action({ action: "tag_delete", tag });
+        return this.bookmarkModification({ action: "tag_delete", tag });
     }
 
     /* END POCKET ACTIONS */

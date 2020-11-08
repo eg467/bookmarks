@@ -3,9 +3,9 @@ import { StartPromiseAction, PromiseSuccessAction, PromiseFailureAction, createP
 import { MyThunkResult, AppState } from "../../../redux/root/reducer";
 import { BookmarkCollection } from "../../../redux/bookmarks/bookmarks";
 import { StoreDispatch } from "../../../redux/store/configureStore";
-import { BookmarkData } from "../../../store/bookmarks";
 import action from "../../root/action";
 import { AnyAction } from "redux";
+import { BookmarkSource, BookmarkSourceType } from "../../bookmarks/reducer";
 
 export enum ActionType {
     FETCH_BOOKMARKS = "pocket/bookmarks/FETCH_BOOKMARKS",
@@ -19,23 +19,17 @@ export enum ActionType {
 // ACTIONS
 export interface FetchBookmarksResponse {
     bookmarks: BookmarkCollection;
-    readonly: boolean;
+    source: BookmarkSource;
 }
 
 export type FetchBookMarksAction = StartPromiseAction<ActionType.FETCH_BOOKMARKS, void>;
 export type FetchBookMarksSuccessAction = PromiseSuccessAction<ActionType.FETCH_BOOKMARKS_SUCCESS, FetchBookmarksResponse, void>;
 export type FetchBookMarksFailureAction = PromiseFailureAction<ActionType.FETCH_BOOKMARKS_FAILURE, void>;
 
-export type RemoveBookmarkPayload = { id: string; }
-export type RemoveBookmarkAction = StartPromiseAction<ActionType.REMOVE_BOOKMARK, RemoveBookmarkPayload>;
-export type RemoveBookmarkSuccessAction = PromiseSuccessAction<ActionType.REMOVE_BOOKMARK_SUCCESS, void, RemoveBookmarkPayload>;
-export type RemoveBookmarkFailureAction = PromiseFailureAction<ActionType.REMOVE_BOOKMARK_FAILURE, RemoveBookmarkPayload>;
-
 // TYPES
 
 export type PocketBookmarksAction =
-    FetchBookMarksAction | FetchBookMarksSuccessAction | FetchBookMarksFailureAction |
-    RemoveBookmarkAction | RemoveBookmarkSuccessAction | RemoveBookmarkFailureAction;
+    FetchBookMarksAction | FetchBookMarksSuccessAction | FetchBookMarksFailureAction;
 
 // ACTION CREATORS
 
@@ -45,17 +39,6 @@ export const actionCreators = {
             startType: ActionType.FETCH_BOOKMARKS,
             successType: ActionType.FETCH_BOOKMARKS_SUCCESS,
             failureType: ActionType.FETCH_BOOKMARKS_FAILURE,
-            promise: () => pocketApi.retrieve({}).then(p => <FetchBookmarksResponse>p)
+            promise: () => pocketApi.retrieve({}).then(bookmarks => <FetchBookmarksResponse>{ bookmarks, source: { description: "Pocket", type: BookmarkSourceType.pocket } })
         }),
-
-    removeBookmark: (key: string) =>
-        createPromiseAction({
-            startType: ActionType.REMOVE_BOOKMARK,
-            successType: ActionType.REMOVE_BOOKMARK_SUCCESS,
-            failureType: ActionType.REMOVE_BOOKMARK_FAILURE,
-            promise: () => pocketApi.delete(key),
-            payload: <RemoveBookmarkPayload>{
-                id: key
-            }
-        })
 };

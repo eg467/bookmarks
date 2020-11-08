@@ -5,7 +5,7 @@ import { StoreDispatch } from '../../../redux/store/configureStore';
 import { connect } from 'react-redux';
 import { Masonry, CellMeasurerCache, WindowScroller, CellMeasurer, MasonryCellProps, AutoSizer, List, ListRowRenderer, Collection, Size } from 'react-virtualized';
 import { CellRenderer, createCellPositioner, Positioner } from 'react-virtualized/dist/es/Masonry';
-import { bookmarkSelectors } from '../../../redux/bookmarks/reducer';
+import { selectors } from '../../../redux/bookmarks/reducer';
 
 import BookmarkBlock from '../bookmark-block/bookmark-block';
 import { useEffect } from 'react';
@@ -29,7 +29,6 @@ interface BookmarkBlocksState {
 }
 
 class BookmarkBlocksComponent extends React.PureComponent<BookmarkBlocksProps, BookmarkBlocksState> {
-
     private columnCount: number = 0;
     private readonly cache: CellMeasurerCache;
     private width: number = 0;
@@ -236,7 +235,7 @@ interface BookmarkBlocksProps extends StateProps, DispatchProps {
 
 const mapStateToProps = (state: AppState) => {
     return {
-        bookmarkIds: bookmarkSelectors.selectSortedBookmarkIds(state.bookmarks),
+        bookmarkIds: selectors.selectSortedBookmarkIds(state),
         loading: pocketSelectors.bookmarks(state),
     };
 };

@@ -43,6 +43,8 @@ export const App: React.FC<AppProps> = (props) => {
                     path="/b/pocket"
                     component={BookmarkPage}
                 />
+
+
                 <Route path="/" render={() => <Redirect to="/b/pocket" />} />
             </Switch>
         </BrowserRouter>

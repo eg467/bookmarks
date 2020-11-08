@@ -17,7 +17,9 @@ namespace Bookmarks.Pages
         public ErrorModel(ILogger<ErrorModel> _logger)
         {
             logger = _logger;
+            logger.LogInformation("Logger test");
         }
+
         public string RequestId { get; set; }
 
         public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);

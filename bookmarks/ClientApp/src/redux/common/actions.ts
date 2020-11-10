@@ -1,2 +1,2 @@
-export type OtherAction = { type: ""; }
-export const otherAction: OtherAction = { type: "" };
+export type NullAction = { type: ""; }
+export const nullAction: NullAction = { type: "" };

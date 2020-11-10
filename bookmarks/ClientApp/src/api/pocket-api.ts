@@ -1,7 +1,7 @@
 //import axios from 'axios';
 import { BookmarkCollection, BookmarkData } from '../redux/bookmarks/bookmarks';
-import { BookmarkSourceType } from '../redux/bookmarks/reducer';
-import { AddBookmarkError, AddBookmarkInput, AddBookmarkResult, BookmarkPersister, TagModification } from './bookmark-io';
+import { BookmarkSourceType, FailedIndividualRequest, PartialSuccessResult } from '../redux/bookmarks/reducer';
+import { AddBookmarkError, AddBookmarkInput, BookmarkKeys, BookmarkPersister, TagModification, toArray } from './bookmark-io';
 import storage from "./local-storage";
 
 export interface PocketAuthState {
@@ -214,22 +214,57 @@ export class PocketApi implements BookmarkPersister {
         return this.authenticatedCall("send", { actions: actions });
     }
 
-    private batchModification(ids: string | string[], action: string, otherParams?: Partial<ActionParameters>) {
-        if (!Array.isArray(ids)) {
-            ids = [ids];
-        }
-        const actions = ids.map(item_id => <ActionParameters>({ item_id, action, ...otherParams }));
-        return this.bookmarkModification(actions).then(r => {
-            let errors = r.action_errors;
-            if (Array.isArray(errors)) {
-                errors = errors.filter(e => e).map(e => `${e.type} (${e.message})`);
-                throw new Error(errors.join(".  ") + ".");
-            }
+    /**
+     * Separate the individually successful vs failed action requests.
+     * @param getKey Retrieves the system key
+     * @param responseData The raw json object returned from the (proxy) server
+     */
+    private parseBatchActionResponse(
+        getKey: (result: any, index: number) => string,
+        responseData: { action_errors: any[], action_results: any[], status: number }): PartialSuccessResult {
+        const { action_results: results, action_errors: errors, status } = responseData;
 
-            if (typeof r.status === "number" && r.status !== 1) {
-                throw new Error("The API request completed, but there was a server error processing that request.");
-            }
-        });
+        if (!Array.isArray(errors)
+            || !Array.isArray(results)
+            || errors.length !== results.length) {
+            throw new Error("Failure parsing the Pocket API response. The request may or may not have been successful.");
+        }
+
+        if (status != 1) {
+            throw new Error("The server responded, but it indicated an operation failure.");
+        }
+
+        const key = (i: number) => getKey(results[i], i);
+
+        const successfulIds = results
+            .map((x, i) => x ? key(i) : null)
+            .filter((x): x is string => (x !== null));
+
+        const failureIds = errors
+            .map((x, i) => x ? { id: key(i), error: `${x.type}: ${x.error}` } as FailedIndividualRequest : null)
+            .filter((x): x is FailedIndividualRequest => x !== null);
+
+        return {
+            dirtyChange: failureIds.length > 0,
+            successfulIds,
+            failureIds,
+        };
+    }
+
+    private validateSingleActionResult(responseData: { action_errors: any[], action_results: any[], status: number }, message: string) {
+        const { action_results: results, action_errors: errors, status } = responseData;
+        if (
+            !Array.isArray(results) || !Array.isArray(errors)
+            || results.length !== 1 || errors.length !== 1
+            || !results[0] || errors[0]) {
+            throw new Error(message);
+        }
+    }
+
+    private batchModification(id: BookmarkKeys, action: string, otherParams?: Partial<ActionParameters>) {
+        const ids = toArray(id);
+        const actions = ids.map(item_id => <ActionParameters>({ item_id, action, ...otherParams }));
+        return this.bookmarkModification(actions).then(r => this.parseBatchActionResponse((_, i) => ids[i], r.data));
     }
 
     /* POCKET ACTIONS */
@@ -242,50 +277,28 @@ export class PocketApi implements BookmarkPersister {
             "tags": b.tags.join(",")
         }));
 
-        return this.bookmarkModification(actions).then(r => {
-            const { action_results: returnedBookmarks, action_errors: actionErrors, status } = r.data;
-            var errors = actionErrors.map((e: any, i: number) => ({
-                message: `${e.type}: ${e.message}`,
-                index: i,
-                input: bookmarkSeeds[i]
-            }));
-
-            if (!status || errors.length) {
-                throw errors;
-            }
-
-            return returnedBookmarks.map((b: any) => ({ item_id: b.item_id }));
-        })
+        return this.bookmarkModification(actions).then(
+            r => this.parseBatchActionResponse((x, _) => x.item_id, r.data))
     }
 
-    remove(keys: string | string[]) {
+    remove(keys: BookmarkKeys) {
         return this.batchModification(keys, "delete");
     }
 
-    archive(keys: string | string[], status: boolean) {
+    archive(keys: BookmarkKeys, status: boolean) {
         return this.batchModification(keys, status ? "archive" : "readd");
     }
 
-    favorite(keys: string | string[], status: boolean) {
+    favorite(keys: BookmarkKeys, status: boolean) {
         return this.batchModification(keys, status ? "favorite" : "unfavorite");
     }
-
-    /**
-     * Replaces current tags for bookmarks.
-     * @param key The bookmark id
-     * @param tags A comma-delimited list of tags
-     */
-    setTags(keys: string | string[], tags: string) {
-        return this.batchModification(keys, "tags_replace", { tags });
-    }
-
     /**
      * Replaces current tags for bookmarks.
      * @param key The bookmark id
      * @param tags A comma-delimited list of tags
      * @param operation What to do with the provided tags
      */
-    modifyTags(keys: string | string[], tags: string, operation: TagModification) {
+    modifyTags(keys: BookmarkKeys, tags: string, operation: TagModification) {
         const apiCommandByOp = {
             [TagModification.set]: "tags_replace",
             [TagModification.add]: "tags_add",
@@ -300,7 +313,10 @@ export class PocketApi implements BookmarkPersister {
      * @param newTag
      */
     renameTag(oldTag: string, newTag: string) {
-        return this.bookmarkModification({ action: "tag_rename", old_tag: oldTag, new_tag: newTag });
+        return this.bookmarkModification({ action: "tag_rename", old_tag: oldTag, new_tag: newTag })
+            .then(r => {
+                this.validateSingleActionResult(r.data, `Failed to rename tag from ${oldTag} to ${newTag}.`);
+            });
     }
 
     /**
@@ -308,7 +324,10 @@ export class PocketApi implements BookmarkPersister {
       * @param tag The name of the tag to delete.
       */
     deleteTag(tag: string) {
-        return this.bookmarkModification({ action: "tag_delete", tag });
+        return this.bookmarkModification({ action: "tag_delete", tag })
+            .then(r => {
+                this.validateSingleActionResult(r.data, `Failed to delete tag ${tag}.`);
+            });
     }
 
     /* END POCKET ACTIONS */

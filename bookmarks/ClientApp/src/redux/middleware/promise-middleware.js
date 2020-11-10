@@ -1,31 +1,55 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.promiseMiddleware = exports.createPromiseAction = void 0;
+exports.promiseMiddleware = exports.createFailurePromiseAction = exports.createSuccessPromiseAction = exports.createStartPromiseAction = exports.createPromiseAction = void 0;
 /** Casts PromiseMiddlewareAction generic params. */
-exports.createPromiseAction = function (action) { return action; };
-function createStartAction(type, payload) {
-    return { type: type, payload: payload };
+exports.createPromiseAction = (action) => action;
+function createStartPromiseAction(type, payload) {
+    return { type, payload };
 }
-function createSuccessAction(type, response, payload) {
-    return { type: type, payload: payload, response: response };
+exports.createStartPromiseAction = createStartPromiseAction;
+function createSuccessPromiseAction(type, response, payload) {
+    return { type, payload, response };
 }
-function createFailureAction(type, error, payload) {
-    return { type: type, payload: payload, error: String(error) };
+exports.createSuccessPromiseAction = createSuccessPromiseAction;
+function createFailurePromiseAction(type, error, payload) {
+    return { type, payload, error: String(error) };
+}
+exports.createFailurePromiseAction = createFailurePromiseAction;
+function createClearingAction(type, callingType, payload) {
+    return { type, callingType, payload };
 }
 function promiseMiddleware() {
-    var promiseMiddleware;
-    promiseMiddleware = function (_a) {
-        var dispatch = _a.dispatch;
-        return function (next) { return function (
-        // The action passed to the dispatch
-        action) {
-            var _a = action, payload = _a.payload, promise = _a.promise, successType = _a.successType, failureType = _a.failureType, startType = _a.startType;
-            if (typeof (promise) !== "function" || !successType) {
-                return next(action);
+    let promiseMiddleware;
+    promiseMiddleware = ({ dispatch }) => next => (
+    // The action passed to the dispatch
+    action) => {
+        const { payload, promise, successType, failureType, clearingAction, startType } = action;
+        if (typeof (promise) !== "function" || !successType) {
+            return next(action);
+        }
+        // Start the ball rolling, going into the pending state
+        dispatch(createStartPromiseAction(startType, payload));
+        return promise().then((response) => {
+            const successAction = dispatch(createSuccessPromiseAction(successType, response, payload));
+            addTimerIfNeeded(successType);
+            return successAction;
+        }, (error) => {
+            if (!failureType) {
+                return Promise.reject(error);
             }
-            dispatch(createStartAction(startType, payload));
-            return promise().then(function (response) { return dispatch(createSuccessAction(successType, response, payload)); }, function (error) { return dispatch(createFailureAction(failureType, error, payload)); });
-        }; };
+            const failureAction = dispatch(createFailurePromiseAction(failureType, error, payload));
+            addTimerIfNeeded(failureType);
+            return failureAction;
+        });
+        function addTimerIfNeeded(callingType) {
+            if (!clearingAction) {
+                return;
+            }
+            const { clearingType, timeoutBeforeClear } = clearingAction;
+            setTimeout(() => {
+                dispatch(createClearingAction(clearingType, callingType, payload));
+            }, timeoutBeforeClear);
+        }
     };
     return promiseMiddleware;
 }

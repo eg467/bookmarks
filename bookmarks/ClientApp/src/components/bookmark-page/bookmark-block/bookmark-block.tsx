@@ -3,6 +3,7 @@ import { connect } from "react-redux";
 import { StoreDispatch } from "../../../redux/store/configureStore";
 import { AppState } from "../../../redux/root/reducer";
 import { selectBookmark, selectors } from "../../../redux/bookmarks/reducer";
+import { RequestType, selectors as reqStateSelectors } from "../../../redux/request-states/reducer";
 import Card from "@material-ui/core/Card";
 import CardMedia from "@material-ui/core/CardMedia";
 import CardHeader from "@material-ui/core/CardHeader";
@@ -18,6 +19,8 @@ import Chip from "@material-ui/core/Chip";
 import { proxyImageSrc } from '../../images/proxied-img';
 import { actionCreators } from '../../../redux/bookmarks/actions';
 import { BookmarkKeys, TagModification } from '../../../api/bookmark-io';
+import LoadingButton from '../../common/LoadingButton';
+import { red, common } from '@material-ui/core/colors';
 
 interface ConnectedProps extends DispatchProps, StateProps, OwnProps {
 }
@@ -40,19 +43,25 @@ const mapDispatchToProps = (dispatch: StoreDispatch, ownProps: OwnProps) => ({
 });
 type DispatchProps = ReturnType<typeof mapDispatchToProps>;
 
-const mapStateToProps = (state: AppState, ownProps: OwnProps) => ({
-    bookmark: selectBookmark(state, ownProps.id),
-    persister: selectors.selectBookmarkPersister(state)
-});
-type StateProps = ReturnType<typeof mapStateToProps>;
+function createMapStateToProps() {
+    const createRequestState = reqStateSelectors.createSelectRequestState();
+    return (state: AppState, ownProps: OwnProps) => ({
+        bookmark: selectBookmark(state, ownProps.id),
+        canDo: selectors.selectCapabilities(state),
+        requestStates: createRequestState(state, ownProps)
+    });
+}
+type StateProps = ReturnType<ReturnType<typeof createMapStateToProps>>;
 
 const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
     const {
         archive: setArchived, remove, favorite: setFavorite, removeTag, addTag, setTags, select,
-        bookmark, persister, onLoad, id, width,
+        bookmark, canDo, onLoad, id, width, requestStates
     } = props;
 
     const { image, tags, title, url, excerpt, archive, authors, favorite, resolvedUrl } = bookmark;
+
+    const getReqStatus = (reqType: RequestType) => requestStates.reqStatus(reqType).state;
 
     const proxiedImage = image ? proxyImageSrc(image, width ? { w: width } : {}) : undefined;
 
@@ -100,11 +109,9 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
     const showFavicon = false;
     const showMainImage = false;
 
-    const handleRemoveTag = (tag: string) => persister.deleteTag ? () => { removeTag(tag); } : undefined;
+    const handleRemoveTag = (tag: string) => canDo("modifyTags") ? () => { removeTag(tag); } : undefined;
 
-    //return (<div>{ <a href={url}>{title}</a> }</div>);
-
-    console.log(persister);
+    const buttonSize = 38;
 
     return (
         <Card>
@@ -141,26 +148,40 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
                 </div>
             </CardContent>
             <CardActions disableSpacing>
-                {(persister.favorite) &&
-                    <IconButton onClick={e => setFavorite(!favorite)} aria-label="Add to favorites">
+                {canDo("favorite") &&
+                    <LoadingButton
+                        state={getReqStatus(RequestType.favorite)}
+                        aria-label={favorite ? "Unfavorite bookmark" : "Favorite bookmark"}
+                    onClick={e => setFavorite(!favorite)}
+                    foregroundColor={favorite ? red[800] : common.black}
+                        diameter={buttonSize}>
                         <FavoriteIcon />
-                    </IconButton>
+                    </LoadingButton>
                 }
 
-                {persister.archive &&
-                    <IconButton onClick={e => setArchived(!archive)} aria-label="Archive bookmark" >
+                {canDo("archive") &&
+
+                    <LoadingButton
+                        state={getReqStatus(RequestType.archive)}
+                        aria-label={archive ? "Unarchive bookmark" : "Archive bookmark"}
+                        onClick={e => setArchived(!archive)}
+                        diameter={buttonSize}>
                         <ArchiveIcon />
-                    </IconButton>
+                    </LoadingButton>
                 }
 
-                {persister.remove &&
-                    <IconButton onClick={e => { if (confirm("Are you sure?")) { remove(); } }} aria-label="Delete bookmark" style={{ color: "red" }}>
-                        <ArchiveIcon />
-                    </IconButton>
+                {canDo("remove") &&
+                    <LoadingButton
+                        state={getReqStatus(RequestType.remove)}
+                        aria-label="Remove bookmark"
+                        onClick={e => { if (confirm("Are you sure?")) { remove(); } }}
+                        diameter={buttonSize}>
+                        <DeleteIcon />
+                    </LoadingButton>
                 }
             </CardActions>
         </Card>
     );
 };
 
-export default connect(mapStateToProps, mapDispatchToProps)(BookmarkBlock);
+export default connect(createMapStateToProps, mapDispatchToProps)(BookmarkBlock);

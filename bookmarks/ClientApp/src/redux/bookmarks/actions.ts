@@ -1,11 +1,11 @@
 import { ActionCreator, AnyAction } from "redux";
-import { AddBookmarkInput, AddBookmarkResult, BookmarkKeys, TagModification } from "../../api/bookmark-io";
-import { OtherAction } from "../../redux/common/actions";
-import { createPromiseAction, PromiseDispatch, PromiseFailureAction, PromiseMiddlewareAction, PromiseSuccessAction, StartPromiseAction } from "../middleware/promise-middleware";
+import { AddBookmarkInput, BookmarkKeys, TagModification } from "../../api/bookmark-io";
+import { NullAction } from "../../redux/common/actions";
+import { createFailurePromiseAction, createPromiseAction, PromiseClearingAction, PromiseDispatch, PromiseFailureAction, PromiseMiddlewareAction, PromiseSuccessAction, StartPromiseAction } from "../middleware/promise-middleware";
 import { AppState, MyThunkResult } from "../root/reducer";
 import { StoreDispatch } from "../store/configureStore";
 import { BookmarkCollection, BookmarkData, BookmarkSortField } from "./bookmarks";
-import { BookmarkSource, selectors } from "./reducer";
+import { BookmarkSource, PartialSuccessResult, selectors } from "./reducer";
 
 export enum ActionType {
     SHOW = "bookmarks/SHOW",
@@ -13,24 +13,31 @@ export enum ActionType {
     ADD = "bookmarks/ADD",
     ADD_SUCCESS = "bookmarks/ADD_SUCCESS",
     ADD_FAILURE = "bookmarks/ADD_FAILURE",
+    ADD_CLEAR = "bookmarks/ADD_CLEAR",
     REMOVE = "bookmarks/REMOVE",
     REMOVE_SUCCESS = "bookmarks/REMOVE_SUCCESS",
     REMOVE_FAILURE = "bookmarks/REMOVE_FAILURE",
+    REMOVE_CLEAR = "bookmarks/REMOVE_CLEAR",
     ARCHIVE = "bookmarks/ARCHIVE",
     ARCHIVE_SUCCESS = "bookmarks/ARCHIVE_SUCCESS",
     ARCHIVE_FAILURE = "bookmarks/ARCHIVE_FAILURE",
+    ARCHIVE_CLEAR = "bookmarks/ARCHIVE_CLEAR",
     FAVORITE = "bookmarks/FAVORITE",
     FAVORITE_SUCCESS = "bookmarks/FAVORITE_SUCCESS",
     FAVORITE_FAILURE = "bookmarks/FAVORITE_FAILURE",
+    FAVORITE_CLEAR = "bookmarks/FAVORITE_CLEAR",
     MODIFY_TAGS = "bookmarks/MODIFY_TAGS",
     MODIFY_TAGS_SUCCESS = "bookmarks/MODIFY_TAGS_SUCCESS",
     MODIFY_TAGS_FAILURE = "bookmarks/MODIFY_TAGS_FAILURE",
+    MODIFY_TAGS_CLEAR = "bookmarks/MODIFY_TAGS_CLEAR",
     RENAME_TAG = "bookmarks/RENAME_TAG",
     RENAME_TAG_SUCCESS = "bookmarks/RENAME_TAG_SUCCESS",
     RENAME_TAG_FAILURE = "bookmarks/RENAME_TAG_FAILURE",
+    RENAME_TAG_CLEAR = "bookmarks/RENAME_TAG_CLEAR",
     DELETE_TAG = "bookmarks/DELETE_TAG",
     DELETE_TAG_SUCCESS = "bookmarks/DELETE_TAG_SUCCESS",
     DELETE_TAG_FAILURE = "bookmarks/DELETE_TAG_FAILURE",
+    DELETE_TAG_CLEAR = "bookmarks/DELETE_TAG_CLEAR",
 
     SORT = "bookmarks/SORT",
 
@@ -52,27 +59,43 @@ export type AddBookmarkActionPayload = {
     bookmarks: AddBookmarkInput[]
 }
 export type AddBookmarkAction = StartPromiseAction<ActionType.ADD, AddBookmarkActionPayload>;
-export type AddBookmarkSuccessAction = PromiseSuccessAction<ActionType.ADD_SUCCESS, AddBookmarkResult, AddBookmarkActionPayload>;
+export type AddBookmarkSuccessAction = PromiseSuccessAction<ActionType.ADD_SUCCESS, PartialSuccessResult, AddBookmarkActionPayload>;
 export type AddBookmarkFailureAction = PromiseFailureAction<ActionType.ADD_FAILURE, AddBookmarkActionPayload>;
+export type AddBookmarkClearAction = PromiseClearingAction<
+    ActionType.ADD_CLEAR,
+    ActionType.ADD_SUCCESS | ActionType.ADD_FAILURE,
+    AddBookmarkActionPayload>;
 
 export type KeyedBookmarkActionPayload = {
     keys: BookmarkKeys;
 }
 export type RemoveBookmarkAction = StartPromiseAction<ActionType.REMOVE, KeyedBookmarkActionPayload>;
-export type RemoveBookmarkSuccessAction = PromiseSuccessAction<ActionType.REMOVE_SUCCESS, void, KeyedBookmarkActionPayload>;
+export type RemoveBookmarkSuccessAction = PromiseSuccessAction<ActionType.REMOVE_SUCCESS, PartialSuccessResult, KeyedBookmarkActionPayload>;
 export type RemoveBookmarkFailureAction = PromiseFailureAction<ActionType.REMOVE_FAILURE, KeyedBookmarkActionPayload>;
+export type RemoveBookmarkClearAction = PromiseClearingAction<
+    ActionType.REMOVE_CLEAR,
+    ActionType.REMOVE_SUCCESS | ActionType.REMOVE_FAILURE,
+    KeyedBookmarkActionPayload>;
 
 export type BookmarkToggleActionPayload = {
     keys: BookmarkKeys;
     status: boolean;
 }
 export type ArchiveBookmarkAction = StartPromiseAction<ActionType.ARCHIVE, BookmarkToggleActionPayload>;
-export type ArchiveBookmarkSuccessAction = PromiseSuccessAction<ActionType.ARCHIVE_SUCCESS, BookmarkData, BookmarkToggleActionPayload>;
+export type ArchiveBookmarkSuccessAction = PromiseSuccessAction<ActionType.ARCHIVE_SUCCESS, PartialSuccessResult, BookmarkToggleActionPayload>;
 export type ArchiveBookmarkFailureAction = PromiseFailureAction<ActionType.ARCHIVE_FAILURE, BookmarkToggleActionPayload>;
+export type ArchiveBookmarkClearAction = PromiseClearingAction<
+    ActionType.ARCHIVE_CLEAR,
+    ActionType.ARCHIVE_SUCCESS | ActionType.ARCHIVE_FAILURE,
+    BookmarkToggleActionPayload>;
 
 export type FavoriteBookmarkAction = StartPromiseAction<ActionType.FAVORITE, BookmarkToggleActionPayload>;
-export type FavoriteBookmarkSuccessAction = PromiseSuccessAction<ActionType.FAVORITE_SUCCESS, BookmarkData, BookmarkToggleActionPayload>;
+export type FavoriteBookmarkSuccessAction = PromiseSuccessAction<ActionType.FAVORITE_SUCCESS, PartialSuccessResult, BookmarkToggleActionPayload>;
 export type FavoriteBookmarkFailureAction = PromiseFailureAction<ActionType.FAVORITE_FAILURE, BookmarkToggleActionPayload>;
+export type FavoriteBookmarkClearAction = PromiseClearingAction<
+    ActionType.FAVORITE_CLEAR,
+    ActionType.FAVORITE_SUCCESS | ActionType.FAVORITE_FAILURE,
+    BookmarkToggleActionPayload>;
 
 export type ModifyTagsActionPayload = {
     keys: BookmarkKeys;
@@ -80,8 +103,12 @@ export type ModifyTagsActionPayload = {
     tags: string;
 }
 export type ModifyTagsAction = StartPromiseAction<ActionType.MODIFY_TAGS, ModifyTagsActionPayload>;
-export type ModifyTagsSuccessAction = PromiseSuccessAction<ActionType.MODIFY_TAGS_SUCCESS, void, ModifyTagsActionPayload>;
+export type ModifyTagsSuccessAction = PromiseSuccessAction<ActionType.MODIFY_TAGS_SUCCESS, PartialSuccessResult, ModifyTagsActionPayload>;
 export type ModifyTagsFailureAction = PromiseFailureAction<ActionType.MODIFY_TAGS_FAILURE, ModifyTagsActionPayload>;
+export type ModifyTagsClearAction = PromiseClearingAction<
+    ActionType.MODIFY_TAGS_CLEAR,
+    ActionType.MODIFY_TAGS_SUCCESS | ActionType.MODIFY_TAGS_FAILURE,
+    ModifyTagsActionPayload>;
 
 export type RenameTagActionPayload = {
     oldTag: string;
@@ -90,6 +117,10 @@ export type RenameTagActionPayload = {
 export type RenameTagAction = StartPromiseAction<ActionType.RENAME_TAG, RenameTagActionPayload>;
 export type RenameTagSuccessAction = PromiseSuccessAction<ActionType.RENAME_TAG_SUCCESS, void, RenameTagActionPayload>;
 export type RenameTagFailureAction = PromiseFailureAction<ActionType.RENAME_TAG_FAILURE, RenameTagActionPayload>;
+export type RenameTagClearAction = PromiseClearingAction<
+    ActionType.RENAME_TAG_CLEAR,
+    ActionType.RENAME_TAG_SUCCESS | ActionType.RENAME_TAG_FAILURE,
+    RenameTagActionPayload>;
 
 export type DeleteTagActionPayload = {
     tag: string;
@@ -97,11 +128,20 @@ export type DeleteTagActionPayload = {
 export type DeleteTagAction = StartPromiseAction<ActionType.DELETE_TAG, DeleteTagActionPayload>;
 export type DeleteTagSuccessAction = PromiseSuccessAction<ActionType.DELETE_TAG_SUCCESS, void, DeleteTagActionPayload>;
 export type DeleteTagFailureAction = PromiseFailureAction<ActionType.DELETE_TAG_FAILURE, DeleteTagActionPayload>;
+export type DeleteTagClearAction = PromiseClearingAction<
+    ActionType.DELETE_TAG_CLEAR,
+    ActionType.DELETE_TAG_SUCCESS | ActionType.DELETE_TAG_FAILURE,
+    DeleteTagActionPayload>;
 
 export interface SortBookmarksAction {
     type: ActionType.SORT;
     field: BookmarkSortField;
     ascendingOrder: boolean;
+}
+
+export interface SetContentFilterAction {
+    type: ActionType.FILTER_CONTENT;
+    q: string;
 }
 
 export interface SetAndTagsAction {
@@ -121,14 +161,14 @@ export interface SetNotTagsAction {
 
 export type BookmarkAction =
     ShowBookmarksAction
-    | AddBookmarkAction | AddBookmarkSuccessAction | AddBookmarkFailureAction
-    | RemoveBookmarkAction | RemoveBookmarkSuccessAction | RemoveBookmarkFailureAction
-    | ArchiveBookmarkAction | ArchiveBookmarkSuccessAction | ArchiveBookmarkFailureAction
-    | FavoriteBookmarkAction | FavoriteBookmarkSuccessAction | FavoriteBookmarkFailureAction
-    | ModifyTagsAction | ModifyTagsSuccessAction | ModifyTagsFailureAction
-    | RenameTagAction | RenameTagSuccessAction | RenameTagFailureAction
-    | DeleteTagAction | DeleteTagSuccessAction | DeleteTagFailureAction
-    | SortBookmarksAction | SetAndTagsAction | SetOrTagsAction | SetNotTagsAction | OtherAction;
+    | AddBookmarkAction | AddBookmarkSuccessAction | AddBookmarkFailureAction | AddBookmarkClearAction
+    | RemoveBookmarkAction | RemoveBookmarkSuccessAction | RemoveBookmarkFailureAction | RemoveBookmarkClearAction
+    | ArchiveBookmarkAction | ArchiveBookmarkSuccessAction | ArchiveBookmarkFailureAction | ArchiveBookmarkClearAction
+    | FavoriteBookmarkAction | FavoriteBookmarkSuccessAction | FavoriteBookmarkFailureAction | FavoriteBookmarkClearAction
+    | ModifyTagsAction | ModifyTagsSuccessAction | ModifyTagsFailureAction | ModifyTagsClearAction
+    | RenameTagAction | RenameTagSuccessAction | RenameTagFailureAction | RenameTagClearAction
+    | DeleteTagAction | DeleteTagSuccessAction | DeleteTagFailureAction | DeleteTagClearAction
+    | SortBookmarksAction | SetAndTagsAction | SetOrTagsAction | SetNotTagsAction | SetContentFilterAction | NullAction;
 
 // END ACTIONS
 
@@ -165,13 +205,15 @@ export const actionCreators = {
                     failureType: ActionType.ADD_FAILURE,
                     promise: () => (persister && persister.add)
                         ? persister.add(bookmarks)
-                        : Promise.resolve<AddBookmarkResult>({ errors: [], savedKeys: [] }),
+                        : Promise.reject(Error("Unsupported bookmark operation.")),
                     payload: <AddBookmarkActionPayload>{ bookmarks }
                 })).catch(e => {
                     // TODO: Add user error notifications in UI & Redux state.
                     console.error(e);
                 });
 
+                // Refresh the page after adding new bookmarks.
+                // (Sometimes API responses to adding new bookmarks)
                 if (persister.refresh) {
                     const newBookmarks = await persister.refresh();
                     var source = selectors.selectBookmarkSource(getState())
@@ -189,7 +231,9 @@ export const actionCreators = {
                 startType: ActionType.REMOVE,
                 successType: ActionType.REMOVE_SUCCESS,
                 failureType: ActionType.REMOVE_FAILURE,
-                promise: () => persister && persister.remove ? persister.remove(keys) : Promise.resolve(),
+                promise: () => persister.remove
+                    ? persister.remove(keys)
+                    : Promise.reject(Error("Unsupported bookmark operation.")),
                 payload: <KeyedBookmarkActionPayload>{ keys }
             }));
         };
@@ -202,7 +246,9 @@ export const actionCreators = {
                 startType: ActionType.ARCHIVE,
                 successType: ActionType.ARCHIVE_SUCCESS,
                 failureType: ActionType.ARCHIVE_FAILURE,
-                promise: () => persister && persister.archive ? persister.archive(keys, status) : Promise.resolve(),
+                promise: () => persister.archive
+                    ? persister.archive(keys, status)
+                    : Promise.reject(Error("Unsupported bookmark operation.")),
                 payload: <BookmarkToggleActionPayload>{ keys }
             }));
         };
@@ -216,9 +262,9 @@ export const actionCreators = {
                 startType: ActionType.FAVORITE,
                 successType: ActionType.FAVORITE_SUCCESS,
                 failureType: ActionType.FAVORITE_FAILURE,
-                promise: () => (persister && persister.favorite)
+                promise: () => persister.favorite
                     ? persister.favorite(keys, status)
-                    : Promise.resolve(),
+                    : Promise.reject(Error("Unsupported bookmark operation.")),
                 payload: input
             }));
         };
@@ -232,9 +278,9 @@ export const actionCreators = {
                 startType: ActionType.MODIFY_TAGS,
                 successType: ActionType.MODIFY_TAGS_SUCCESS,
                 failureType: ActionType.MODIFY_TAGS_FAILURE,
-                promise: () => (persister && persister.modifyTags)
+                promise: () => persister.modifyTags
                     ? persister.modifyTags(keys, tags, operation)
-                    : Promise.resolve(),
+                    : Promise.reject(Error("Unsupported bookmark operation.")),
                 payload: input
             }));
         };
@@ -248,9 +294,9 @@ export const actionCreators = {
                 startType: ActionType.RENAME_TAG,
                 successType: ActionType.RENAME_TAG_SUCCESS,
                 failureType: ActionType.RENAME_TAG_FAILURE,
-                promise: () => (persister && persister.renameTag)
+                promise: () => persister.renameTag
                     ? persister.renameTag(oldTag, newTag)
-                    : Promise.resolve(),
+                    : Promise.reject(Error("Unsupported bookmark operation.")),
                 payload: input
             }));
         };
@@ -264,9 +310,9 @@ export const actionCreators = {
                 startType: ActionType.DELETE_TAG,
                 successType: ActionType.DELETE_TAG_SUCCESS,
                 failureType: ActionType.DELETE_TAG_FAILURE,
-                promise: () => (persister && persister.deleteTag)
+                promise: () => persister.deleteTag
                     ? persister.deleteTag(tag)
-                    : Promise.resolve(),
+                    : Promise.reject(Error("Unsupported bookmark operation.")),
                 payload: input
             }));
         };

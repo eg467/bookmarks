@@ -1,4 +1,4 @@
-import { OtherAction } from "../../common/actions";
+import { NullAction } from "../../common/actions";
 
 import { MyThunkResult, MyThunkDispatch } from "../../root/reducer";
 import pocketApi from "../../../api/pocket-api";
@@ -96,7 +96,7 @@ export type PocketAuthActionTypes =
     FetchRequestTokenAction | FetchRequestTokenSuccessAction | FetchRequestTokenFailureAction
     | RedirectToPocketAction | ReceivePocketCallbackAction | LogoutAction
     | FetchAccessTokenAction | FetchAccessTokenSuccessAction | FetchAccessTokenFailureAction
-    | RefreshAuthStateAction | SetWaitingForRedirectionAction | OtherAction;
+    | RefreshAuthStateAction | SetWaitingForRedirectionAction | NullAction;
 
 // ACTION CREATORS
 

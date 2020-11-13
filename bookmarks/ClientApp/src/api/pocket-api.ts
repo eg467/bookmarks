@@ -161,7 +161,7 @@ export class PocketApi implements BookmarkPersister {
             .then(results => results.data.list)
             .then(b => this.toBookmarks(b));
     }
-
+ 
     refresh() {
         return this.retrieve({});
     }
@@ -170,9 +170,12 @@ export class PocketApi implements BookmarkPersister {
      * Retrieve a hard-coded json sample of Pocket results for non-user demo.
      */
     retrieveSample() {
-        return import("../data/sample.json")
-            .then(results => results.content.list)
-            .then(b => this.toBookmarks(b));
+        return require("../data/sample.json")
+            
+            
+            
+            .then((results: any) => results.content.list)
+            .then((b: any) => this.toBookmarks(b));
     }
 
     logout() {

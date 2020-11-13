@@ -1,9 +1,6 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.actionCreators = exports.ActionType = void 0;
-const promise_middleware_1 = require("../middleware/promise-middleware");
-const reducer_1 = require("./reducer");
-var ActionType;
+import { createPromiseAction } from "../middleware/promise-middleware";
+import { selectors } from "./reducer";
+export var ActionType;
 (function (ActionType) {
     ActionType["SHOW"] = "bookmarks/SHOW";
     ActionType["ADD"] = "bookmarks/ADD";
@@ -39,11 +36,11 @@ var ActionType;
     ActionType["FILTER_OR_TAGS"] = "bookmarks/FILTER_OR_TAGS";
     ActionType["FILTER_NOT_TAGS"] = "bookmarks/FILTER_NOT_TAGS";
     ActionType["FILTER_CONTENT"] = "bookmarks/FILTER_CONTENT";
-})(ActionType = exports.ActionType || (exports.ActionType = {}));
+})(ActionType || (ActionType = {}));
 // END ACTIONS
 // ACTION CREATORS
-const getPersister = (getState) => reducer_1.selectors.selectBookmarkPersister(getState());
-exports.actionCreators = {
+const getPersister = (getState) => selectors.selectBookmarkPersister(getState());
+export const actionCreators = {
     showBookmarks: (bookmarks, source) => ({
         type: ActionType.SHOW,
         bookmarks,
@@ -61,7 +58,7 @@ exports.actionCreators = {
         return (bookmarks) => {
             return async (dispatch, getState) => {
                 const persister = getPersister(getState);
-                await dispatch(promise_middleware_1.createPromiseAction({
+                await dispatch(createPromiseAction({
                     startType: ActionType.ADD,
                     successType: ActionType.ADD_SUCCESS,
                     failureType: ActionType.ADD_FAILURE,
@@ -77,7 +74,7 @@ exports.actionCreators = {
                 // (Sometimes API responses to adding new bookmarks)
                 if (persister.refresh) {
                     const newBookmarks = await persister.refresh();
-                    var source = reducer_1.selectors.selectBookmarkSource(getState());
+                    var source = selectors.selectBookmarkSource(getState());
                     dispatch(this.showBookmarks(newBookmarks, source));
                 }
             };
@@ -86,7 +83,7 @@ exports.actionCreators = {
     remove: (keys) => {
         return async (dispatch, getState) => {
             const persister = getPersister(getState);
-            await dispatch(promise_middleware_1.createPromiseAction({
+            await dispatch(createPromiseAction({
                 startType: ActionType.REMOVE,
                 successType: ActionType.REMOVE_SUCCESS,
                 failureType: ActionType.REMOVE_FAILURE,
@@ -100,7 +97,7 @@ exports.actionCreators = {
     archive: (keys, status) => {
         return async (dispatch, getState) => {
             const persister = getPersister(getState);
-            await dispatch(promise_middleware_1.createPromiseAction({
+            await dispatch(createPromiseAction({
                 startType: ActionType.ARCHIVE,
                 successType: ActionType.ARCHIVE_SUCCESS,
                 failureType: ActionType.ARCHIVE_FAILURE,
@@ -115,7 +112,7 @@ exports.actionCreators = {
         return async (dispatch, getState) => {
             const persister = getPersister(getState);
             const { keys, status } = input;
-            await dispatch(promise_middleware_1.createPromiseAction({
+            await dispatch(createPromiseAction({
                 startType: ActionType.FAVORITE,
                 successType: ActionType.FAVORITE_SUCCESS,
                 failureType: ActionType.FAVORITE_FAILURE,
@@ -130,7 +127,7 @@ exports.actionCreators = {
         return async (dispatch, getState) => {
             const persister = getPersister(getState);
             const { keys, tags, operation } = input;
-            await dispatch(promise_middleware_1.createPromiseAction({
+            await dispatch(createPromiseAction({
                 startType: ActionType.MODIFY_TAGS,
                 successType: ActionType.MODIFY_TAGS_SUCCESS,
                 failureType: ActionType.MODIFY_TAGS_FAILURE,
@@ -145,7 +142,7 @@ exports.actionCreators = {
         return async (dispatch, getState) => {
             const persister = getPersister(getState);
             const { newTag, oldTag } = input;
-            await dispatch(promise_middleware_1.createPromiseAction({
+            await dispatch(createPromiseAction({
                 startType: ActionType.RENAME_TAG,
                 successType: ActionType.RENAME_TAG_SUCCESS,
                 failureType: ActionType.RENAME_TAG_FAILURE,
@@ -160,7 +157,7 @@ exports.actionCreators = {
         return async (dispatch, getState) => {
             const persister = getPersister(getState);
             const { tag } = input;
-            await dispatch(promise_middleware_1.createPromiseAction({
+            await dispatch(createPromiseAction({
                 startType: ActionType.DELETE_TAG,
                 successType: ActionType.DELETE_TAG_SUCCESS,
                 failureType: ActionType.DELETE_TAG_FAILURE,
@@ -173,4 +170,3 @@ exports.actionCreators = {
     }
 };
 // END ACTION CREATORS
-//# sourceMappingURL=actions.js.map

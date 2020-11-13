@@ -1,13 +1,13 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Logging;
 
-namespace Bookmarks.Pages
+namespace ASP.NETCoreWebApplication.Pages
 {
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public class ErrorModel : PageModel
@@ -17,7 +17,6 @@ namespace Bookmarks.Pages
         public ErrorModel(ILogger<ErrorModel> _logger)
         {
             logger = _logger;
-            logger.LogInformation("Logger test");
         }
 
         public string RequestId { get; set; }

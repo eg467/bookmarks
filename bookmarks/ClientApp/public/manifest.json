@@ -1,6 +1,6 @@
 {
-  "short_name": "bookmarks",
-  "name": "bookmarks",
+  "short_name": "ASP.NETCoreWebApplication",
+  "name": "ASP.NETCoreWebApplication",
   "icons": [
     {
       "src": "favicon.ico",

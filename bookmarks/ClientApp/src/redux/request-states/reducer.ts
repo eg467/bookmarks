@@ -178,10 +178,14 @@ export default produce((state: RequestStatesState, action: RequestStateAction | 
 const selectRequestStates = (state: AppState) => state.bookmarks.requestStates;
 const selectRequestStatesByBookmark = (state: AppState) => state.bookmarks.requestStates.byBookmark;
 const selectBulkRequestStates = (state: AppState) => state.bookmarks.requestStates.bulkRequests;
-const _idProp = (_: AppState, { id }: { id: string }) => id;
-const selectRequestStatesForBookmark = createSelector([selectRequestStatesByBookmark, _idProp], (byBookmark, id) => {
-    return byBookmark[id];
-});
+const _idProp = (_: AppState, { bookmarkId }: { bookmarkId: string }) => bookmarkId;
+const selectRequestStatesForBookmark = (state: AppState, { bookmarkId }: { bookmarkId: string }) =>
+    state.bookmarks.requestStates.byBookmark[bookmarkId];
+
+
+//    createSelector([selectRequestStatesByBookmark, _idProp], (byBookmark, bookmarkId) => {
+//    return byBookmark[bookmarkId];
+//});
 
 /**
  * Parses request status taking into account that inactive states have no entries for space saving.
@@ -206,5 +210,5 @@ const createSelectRequestState = () => {
 };
 
 export const selectors = {
-    selectRequestStates, selectBulkRequestStates, createSelectRequestState, selectRequestStatesByBookmark
+    selectRequestStates, selectBulkRequestStates, createSelectRequestState, selectRequestStatesByBookmark, selectRequestStatesForBookmark
 };

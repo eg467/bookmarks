@@ -39,6 +39,7 @@ export const actionCreators = {
             startType: ActionType.FETCH_BOOKMARKS,
             successType: ActionType.FETCH_BOOKMARKS_SUCCESS,
             failureType: ActionType.FETCH_BOOKMARKS_FAILURE,
-            promise: () => pocketApi.retrieve({}).then(bookmarks => <FetchBookmarksResponse>{ bookmarks, source: { description: "Pocket", type: BookmarkSourceType.pocket } })
+            promise: () => pocketApi.retrieve({})
+                .then(bookmarks => <FetchBookmarksResponse>{ bookmarks, source: { description: "Pocket", type: BookmarkSourceType.pocket } })
         }),
 };

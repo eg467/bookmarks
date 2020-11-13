@@ -1,24 +1,18 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.promiseMiddleware = exports.createFailurePromiseAction = exports.createSuccessPromiseAction = exports.createStartPromiseAction = exports.createPromiseAction = void 0;
 /** Casts PromiseMiddlewareAction generic params. */
-exports.createPromiseAction = (action) => action;
-function createStartPromiseAction(type, payload) {
+export const createPromiseAction = (action) => action;
+export function createStartPromiseAction(type, payload) {
     return { type, payload };
 }
-exports.createStartPromiseAction = createStartPromiseAction;
-function createSuccessPromiseAction(type, response, payload) {
+export function createSuccessPromiseAction(type, response, payload) {
     return { type, payload, response };
 }
-exports.createSuccessPromiseAction = createSuccessPromiseAction;
-function createFailurePromiseAction(type, error, payload) {
+export function createFailurePromiseAction(type, error, payload) {
     return { type, payload, error: String(error) };
 }
-exports.createFailurePromiseAction = createFailurePromiseAction;
 function createClearingAction(type, callingType, payload) {
     return { type, callingType, payload };
 }
-function promiseMiddleware() {
+export function promiseMiddleware() {
     let promiseMiddleware;
     promiseMiddleware = ({ dispatch }) => next => (
     // The action passed to the dispatch
@@ -53,5 +47,3 @@ function promiseMiddleware() {
     };
     return promiseMiddleware;
 }
-exports.promiseMiddleware = promiseMiddleware;
-//# sourceMappingURL=promise-middleware.js.map

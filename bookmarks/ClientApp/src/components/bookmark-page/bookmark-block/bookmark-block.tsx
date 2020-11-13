@@ -1,9 +1,13 @@
-import React, { useEffect, memo } from 'react';
+import React, { useEffect } from "react";
 import { connect } from "react-redux";
 import { StoreDispatch } from "../../../redux/store/configureStore";
 import { AppState } from "../../../redux/root/reducer";
 import { selectBookmark, selectors } from "../../../redux/bookmarks/reducer";
-import { RequestType, selectors as reqStateSelectors } from "../../../redux/request-states/reducer";
+import {
+   RequestStateType,
+   RequestType,
+   selectors as reqStateSelectors,
+} from "../../../redux/request-states/reducer";
 import Card from "@material-ui/core/Card";
 import CardMedia from "@material-ui/core/CardMedia";
 import CardHeader from "@material-ui/core/CardHeader";
@@ -11,177 +15,235 @@ import { FaviconImg } from "../../images/favicon-img";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
 import CardActions from "@material-ui/core/CardActions";
-import IconButton from "@material-ui/core/IconButton";
-import FavoriteIcon from '@material-ui/icons/Favorite';
-import DeleteIcon from '@material-ui/icons/Delete';
-import ArchiveIcon from '@material-ui/icons/Archive';
-import Chip from "@material-ui/core/Chip";
-import { proxyImageSrc } from '../../images/proxied-img';
-import { actionCreators } from '../../../redux/bookmarks/actions';
-import { BookmarkKeys, TagModification } from '../../../api/bookmark-io';
-import LoadingButton from '../../common/LoadingButton';
-import { red, common } from '@material-ui/core/colors';
+import FavoriteIcon from "@material-ui/icons/Favorite";
+import DeleteIcon from "@material-ui/icons/Delete";
+import ArchiveIcon from "@material-ui/icons/Archive";
+import { proxyImageSrc } from "../../images/proxied-img";
+import { actionCreators } from "../../../redux/bookmarks/actions";
+import { TagModification } from "../../../api/bookmark-io";
+import LoadingButton from "../../common/LoadingButton";
 
-interface ConnectedProps extends DispatchProps, StateProps, OwnProps {
-}
+import { red, common } from "@material-ui/core/colors";
+import BookmarkTagEditor from "../../tags/BookmarkTagEditor";
+import { createStyles, makeStyles } from "@material-ui/core";
+
+interface ConnectedProps extends DispatchProps, StateProps, OwnProps {}
 
 interface OwnProps {
-    id: string;
-    /** The width of the block for requesting the optimized image size */
-    width?: number;
-    onLoad?: () => void;
+   bookmarkId: string;
+   /** The width of the block for requesting the optimized image size */
+   width?: number;
+   onLoad?: () => void;
 }
 
 const mapDispatchToProps = (dispatch: StoreDispatch, ownProps: OwnProps) => ({
-    archive: (status: boolean) => dispatch(actionCreators.archive(ownProps.id, status)),
-    remove: () => dispatch(actionCreators.remove(ownProps.id)),
-    favorite: (status: boolean) => dispatch(actionCreators.favorite({ keys: ownProps.id, status })),
-    removeTag: (tag: string) => dispatch(actionCreators.modifyTags({ keys: ownProps.id, operation: TagModification.remove, tags: tag })),
-    addTag: (tag: string) => dispatch(actionCreators.modifyTags({ keys: ownProps.id, operation: TagModification.add, tags: tag })),
-    setTags: (tags: string) => dispatch(actionCreators.modifyTags({ keys: ownProps.id, operation: TagModification.set, tags })),
-    select: () => { /* Implement bulk selection/edit feature. */ }
+   archive: (status: boolean): Promise<void> =>
+      dispatch(actionCreators.archive(ownProps.bookmarkId, status)),
+   remove: (): Promise<void> =>
+      dispatch(actionCreators.remove(ownProps.bookmarkId)),
+   favorite: (status: boolean): Promise<void> =>
+      dispatch(actionCreators.favorite({ keys: ownProps.bookmarkId, status })),
+   removeTag: (tag: string): Promise<void> =>
+      dispatch(
+         actionCreators.modifyTags({
+            keys: ownProps.bookmarkId,
+            operation: TagModification.remove,
+            tags: tag,
+         }),
+      ),
+   addTag: (tag: string): Promise<void> =>
+      dispatch(
+         actionCreators.modifyTags({
+            keys: ownProps.bookmarkId,
+            operation: TagModification.add,
+            tags: tag,
+         }),
+      ),
+   setTags: (tags: string): Promise<void> =>
+      dispatch(
+         actionCreators.modifyTags({
+            keys: ownProps.bookmarkId,
+            operation: TagModification.set,
+            tags,
+         }),
+      ),
+   select: (): void => {
+      /* Implement bulk selection/edit feature. */
+   },
 });
 type DispatchProps = ReturnType<typeof mapDispatchToProps>;
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function createMapStateToProps() {
-    const createRequestState = reqStateSelectors.createSelectRequestState();
-    return (state: AppState, ownProps: OwnProps) => ({
-        bookmark: selectBookmark(state, ownProps.id),
-        canDo: selectors.selectCapabilities(state),
-        requestStates: createRequestState(state, ownProps)
-    });
+   const createRequestState = reqStateSelectors.createSelectRequestState();
+   return (state: AppState, ownProps: OwnProps): any => ({
+      bookmark: selectBookmark(state, ownProps.bookmarkId),
+      canDo: selectors.selectCapabilities(state),
+      requestStates: createRequestState(state, ownProps),
+   });
 }
 type StateProps = ReturnType<ReturnType<typeof createMapStateToProps>>;
 
+const useStyles = makeStyles(() =>
+   createStyles({
+      media: {
+         height: 0,
+         paddingTop: "56.25%", // 16:9,
+         marginTop: "30",
+         backgroundSize: "contain",
+         backgroundPosition: "center center",
+      },
+   }),
+);
+
 const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
-    const {
-        archive: setArchived, remove, favorite: setFavorite, removeTag, addTag, setTags, select,
-        bookmark, canDo, onLoad, id, width, requestStates
-    } = props;
+   const {
+      archive: setArchived,
+      remove,
+      favorite: setFavorite,
+      bookmark,
+      canDo,
+      onLoad,
+      bookmarkId,
+      width,
+      requestStates,
+   } = props;
 
-    const { image, tags, title, url, excerpt, archive, authors, favorite, resolvedUrl } = bookmark;
+   const classes = useStyles();
 
-    const getReqStatus = (reqType: RequestType) => requestStates.reqStatus(reqType).state;
+   const { image, tags, title, url, excerpt, archive, favorite } = bookmark;
+   const getReqStatus = (reqType: RequestType): RequestStateType =>
+      requestStates.reqStatus(reqType).state;
+   const proxiedImage = image
+      ? proxyImageSrc(image, width ? { w: width } : {})
+      : undefined;
 
-    const proxiedImage = image ? proxyImageSrc(image, width ? { w: width } : {}) : undefined;
+   function getHostName(url: string): string | null {
+      if (!url) {
+         return null;
+      }
+      const a = document.createElement("a");
+      a.href = url;
+      return a.host;
+   }
 
-    function getHostName(url: string) {
-        if (!url) {
-            return null;
-        }
+   function handleLoad(): void {
+      if (onLoad) {
+         onLoad();
+      }
+   }
 
-        var match = url.match(/:\/\/(www[0-9]?\.)?(.[^/:]+)/i);
-        return (match != null && match.length > 2 && typeof match[2] === 'string' && match[2].length > 0)
-            ? match[2] : null;
-    }
+   function handleError(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
+      (e.target as HTMLDivElement).style.display = "none";
+      handleLoad();
+   }
 
-    useEffect(() => {
-        // call loaded if the main image wasn't set
-        if (!image) {
-            handleLoad();
-        }
-    }, [image, onLoad]);
+   useEffect(() => {
+      // call loaded if the main image wasn't set
 
-    function handleLoad() {
-        if (onLoad) {
-            onLoad();
-        }
-    }
+      console.log("bookmark block useeffect");
 
-    function handleError(e: React.SyntheticEvent<HTMLDivElement, Event>) {
-        (e.target as HTMLDivElement).style.display = "none";
-        handleLoad();
-    }
+      if (!image) {
+         handleLoad();
+      }
+   }, [image, onLoad]);
 
-    const domain = getHostName(url);
+   const domain = getHostName(url);
+   const showFavicon = false;
+   const showMainImage = false;
 
-    const styles =
-    {
-        media: {
-            height: 0,
-            paddingTop: '56.25%', // 16:9,
-            marginTop: '30',
-            backgroundSize: "contain",
-            backgroundPosition: "center center",
-        }
-    };
+   const buttonSize = 38;
 
-    const showFavicon = false;
-    const showMainImage = false;
+   const FavoriteButton = (): JSX.Element => (
+      <LoadingButton
+         state={getReqStatus(RequestType.favorite)}
+         aria-label={favorite ? "Unfavorite bookmark" : "Favorite bookmark"}
+         onClick={() => setFavorite(!favorite)}
+         foregroundColor={favorite ? red[800] : common.black}
+         diameter={buttonSize}
+      >
+         <FavoriteIcon />
+      </LoadingButton>
+   );
 
-    const handleRemoveTag = (tag: string) => canDo("modifyTags") ? () => { removeTag(tag); } : undefined;
+   const ArchiveButton = (): JSX.Element => (
+      <LoadingButton
+         state={getReqStatus(RequestType.archive)}
+         aria-label={archive ? "Unarchive bookmark" : "Archive bookmark"}
+         onClick={(): Promise<void> => setArchived(!archive)}
+         diameter={buttonSize}
+      >
+         <ArchiveIcon />
+      </LoadingButton>
+   );
 
-    const buttonSize = 38;
-
-    return (
-        <Card>
-            <CardHeader
-                avatar={
-                    showFavicon && <FaviconImg url={url} source="duckduckgo" alt="" width={24} height={24} />
-                }
-                title={title}
-                subheader={domain}
-            />
-
-            {
-                (showMainImage
-                    && proxiedImage
-                    && (<CardMedia
-                        onLoad={handleLoad}
-                        onError={handleError}
-                        image={proxiedImage}
-                        style={styles.media}
-                    />)) || null
+   const DeleteButton = (): JSX.Element => (
+      <LoadingButton
+         state={getReqStatus(RequestType.remove)}
+         aria-label="Remove bookmark"
+         onClick={(): void => {
+            if (window.confirm("Are you sure?")) {
+               // noinspection JSIgnoredPromiseFromCall
+               remove();
             }
+         }}
+         diameter={buttonSize}
+      >
+         <DeleteIcon />
+      </LoadingButton>
+   );
 
-            <CardContent>
-                {excerpt &&
-                    <Typography variant="body2" color="textSecondary" component="p">
-                        {excerpt}
-                    </Typography>
-                }
 
-                <div>
-                    {!tags && (<span>NO TAGS</span>)}
-                    {tags && tags.length &&
-                        tags.map(t => <Chip key={t} label={t} onDelete={handleRemoveTag(t)} />)}
-                </div>
-            </CardContent>
-            <CardActions disableSpacing>
-                {canDo("favorite") &&
-                    <LoadingButton
-                        state={getReqStatus(RequestType.favorite)}
-                        aria-label={favorite ? "Unfavorite bookmark" : "Favorite bookmark"}
-                    onClick={e => setFavorite(!favorite)}
-                    foregroundColor={favorite ? red[800] : common.black}
-                        diameter={buttonSize}>
-                        <FavoriteIcon />
-                    </LoadingButton>
-                }
 
-                {canDo("archive") &&
+   return (
+      <Card>
+         <CardHeader
+            avatar={
+               showFavicon && (
+                  <FaviconImg
+                     url={url}
+                     source="duckduckgo"
+                     alt=""
+                     width={24}
+                     height={24}
+                  />
+               )
+            }
+            title={title}
+            subheader={domain}
+         />
 
-                    <LoadingButton
-                        state={getReqStatus(RequestType.archive)}
-                        aria-label={archive ? "Unarchive bookmark" : "Archive bookmark"}
-                        onClick={e => setArchived(!archive)}
-                        diameter={buttonSize}>
-                        <ArchiveIcon />
-                    </LoadingButton>
-                }
+         {(showMainImage && proxiedImage && (
+            <CardMedia
+               onLoad={handleLoad}
+               onError={handleError}
+               image={proxiedImage}
+               className={`${classes.media}`}
+            />
+         )) ||
+            null}
 
-                {canDo("remove") &&
-                    <LoadingButton
-                        state={getReqStatus(RequestType.remove)}
-                        aria-label="Remove bookmark"
-                        onClick={e => { if (confirm("Are you sure?")) { remove(); } }}
-                        diameter={buttonSize}>
-                        <DeleteIcon />
-                    </LoadingButton>
-                }
-            </CardActions>
-        </Card>
-    );
+         <CardContent style={{ overflowY: "auto" }}>
+            {excerpt && (
+               <Typography variant="body2" color="textSecondary" component="p">
+                  {excerpt}
+               </Typography>
+            )}
+
+            <div>
+               <BookmarkTagEditor values={tags} bookmarkId={bookmarkId} />
+            </div>
+         </CardContent>
+         <CardActions>
+            {canDo("favorite") && FavoriteButton()}
+            {canDo("archive") && ArchiveButton()}
+            {canDo("remove") && DeleteButton()}
+         </CardActions>
+      </Card>
+   );
 };
 
-export default connect(createMapStateToProps, mapDispatchToProps)(BookmarkBlock);
+export default connect(
+   createMapStateToProps,
+   mapDispatchToProps,
+)(BookmarkBlock);

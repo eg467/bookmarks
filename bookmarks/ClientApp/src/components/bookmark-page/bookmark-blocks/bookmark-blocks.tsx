@@ -64,8 +64,9 @@ class BookmarkBlocksComponent extends React.PureComponent<BookmarkBlocksProps, B
     }
 
     componentDidUpdate(prevProps: BookmarkBlocksProps, prevState: BookmarkBlocksState) {
+        console.log("componentDidUpdate", prevProps.bookmarkIds, this.props.bookmarkIds, prevProps.bookmarkIds === this.props.bookmarkIds);
         if (prevProps.bookmarkIds !== this.props.bookmarkIds && this.masonry) {
-            console.log("componentDidUpdate");
+            console.log("inside componentDidUpdate", prevProps.bookmarkIds, this.props.bookmarkIds, prevProps.bookmarkIds === this.props.bookmarkIds);
             this._resetList();
             if (this.autosizer) {
                 this.autosizer.forceUpdate();
@@ -112,7 +113,7 @@ class BookmarkBlocksComponent extends React.PureComponent<BookmarkBlocksProps, B
         return (
             <CellMeasurer cache={this.cache} index={index} key={key} parent={parent}>
                 <div style={style}>
-                    <BookmarkBlock width={columnWidth} id={bookmarkIds[index]} />
+                    <BookmarkBlock width={columnWidth} bookmarkId={bookmarkIds[index]} />
                 </div>
             </CellMeasurer>
         );

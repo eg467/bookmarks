@@ -1,15 +1,12 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.selectors = exports.initialState = void 0;
-const actions = require("./actions");
-exports.initialState = {
+import * as actions from './actions';
+export const initialState = {
     bookmarks: {},
     readonly: true,
     loading: false,
     error: null
 };
 // REDUCER
-function default_1(state = exports.initialState, action) {
+export default function (state = initialState, action) {
     switch (action.type) {
         // FETCH BOOKMARKS
         case actions.ActionType.FETCH_BOOKMARKS:
@@ -38,12 +35,10 @@ function default_1(state = exports.initialState, action) {
             return state;
     }
 }
-exports.default = default_1;
 // SELECTORS
-exports.selectors = {
+export const selectors = {
     isReadonly: (state) => state.pocket.bookmarks,
     isLoading: (state) => state.pocket.bookmarks.loading,
     selectBookmarks: (state) => state.pocket.bookmarks.bookmarks,
     selectBookmark: (state, id) => state.pocket.bookmarks.bookmarks[id],
 };
-//# sourceMappingURL=reducer.js.map

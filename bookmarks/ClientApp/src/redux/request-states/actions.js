@@ -1,17 +1,14 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.actionCreators = exports.ActionType = void 0;
-var ActionType;
+export var ActionType;
 (function (ActionType) {
     ActionType["SET_GLOBAL_REQ_STATE"] = "request_states/SET_GLOBAL_STATE";
     ActionType["REMOVE_GLOBAL_REQ_STATE"] = "request_states/REMOVE_GLOBAL_STATE";
     ActionType["SET_BOOKMARK_REQ_STATE"] = "request_states/SET_BOOKMARK_STATE";
     ActionType["REMOVE_BOOKMARK_REQ_STATE"] = "request_states/REMOVE_BOOKMARK_STATE";
     ActionType["CLEAR"] = "request_states/CLEAR";
-})(ActionType = exports.ActionType || (exports.ActionType = {}));
+})(ActionType || (ActionType = {}));
 // END ACTIONS
 // ACTION CREATORS
-exports.actionCreators = {
+export const actionCreators = {
     setGlobalRequestState: (requestType, requestState) => ({
         type: ActionType.SET_GLOBAL_REQ_STATE,
         requestType,
@@ -37,4 +34,3 @@ exports.actionCreators = {
     })
 };
 // END ACTION CREATORS
-//# sourceMappingURL=actions.js.map

@@ -1,6 +1,6 @@
 import React from 'react'
+import TagFilterPage from '../tags/TagFilterPage';
 import BookmarkBlocks from "./bookmark-blocks/bookmark-blocks";
-import TagFilterPage from '../../components/filters/tag-filter-page';
 
 export default () => {
     return (

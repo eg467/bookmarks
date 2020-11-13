@@ -107,7 +107,7 @@ export declare const selectors: {
     selectRequestStates: (state: AppState) => RequestStatesState;
     selectBulkRequestStates: (state: AppState) => Partial<Record<RequestType, RequestState>>;
     createSelectRequestState: () => import("reselect").OutputParametricSelector<AppState, {
-        id: string;
+        bookmarkId: string;
     }, {
         states: Partial<Record<RequestType, RequestState>>;
         bulkStates: Partial<Record<RequestType, RequestState>>;

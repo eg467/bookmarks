@@ -159,7 +159,7 @@ declare const reducer: <Base extends {
    base: Base,
    action:
       | import("../common/actions").NullAction
-      | actions.ShowBookmarksAction
+      | actions.LoadBookmarksAction
       | actions.AddBookmarkAction
       | actions.AddBookmarkSuccessAction
       | actions.AddBookmarkFailureAction

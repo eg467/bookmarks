@@ -20,18 +20,41 @@ import { RequestStatesState } from "../request-states/reducer";
 import produce from "immer";
 
 export enum BookmarkSourceType {
+   /**
+    * There is no data from no source
+    */
    none,
+   /*
+    * Data comes from an authenticated getpocket.com account.
+    */
    pocket,
+   /*
+    * Imported from read-only json source, e.g. from a textbox or querystring
+    */
    json,
+   /*
+    * Json loaded from a source (e.g. jsonbin or myjson) owned or created by the user.
+    */
    savedJson,
+   /*
+    * Json loaded from a source (e.g. jsonbin or myjson) owned or created by a different user.
+    */
    externalJson,
+   /*
+    * Json loaded from a user's bookmarks
+    */
    browserBookmarks,
+}
+
+export enum SourceTrustLevel {
+   trusted, untrusted, warnedUntrusted
 }
 
 export interface BookmarkSource {
    type: BookmarkSourceType;
    description: string;
    bookmarkSetIdentifier?: string;
+   trusted: SourceTrustLevel;
 }
 
 // TODO: Split these reducers.
@@ -50,6 +73,10 @@ export interface BookmarkState {
       notFilterTags: string[];
       /** Matching bookmarks must this in the title, domain, excerpt, etc. */
       contentFilter: string;
+      /** Matching bookmarks must be: true: archived, false: archived, undefined: either. */
+      archived?: boolean;
+      /** Matching bookmarks must be: true: favorite, false: not a favorite, undefined: either. */
+      favorite?: boolean;
    };
    source: BookmarkSource;
    requestStates: RequestStatesState;
@@ -70,6 +97,7 @@ export const initialState: BookmarkState = {
    source: {
       description: "Not loaded",
       type: BookmarkSourceType.none,
+      trusted: SourceTrustLevel.untrusted
    },
    requestStates: {
       bulkRequests: {},
@@ -77,33 +105,12 @@ export const initialState: BookmarkState = {
    },
 };
 
-//const modifyBookmarks = (keys: BookmarkKeys, oldBookmarks: BookmarkCollection, modifier: (bookmark: BookmarkData) => BookmarkData) => {
-//    const bookmarks: BookmarkCollection = { ...oldBookmarks };
-//    for (let key of toArray(keys)) {
-//        bookmarks[key] = modifier(bookmarks[key]);
-//    }
-//    return bookmarks;
-//}
-
 const ciCollator = new Intl.Collator("en-US", { sensitivity: "accent" });
 const ciCompare = (a: string, b: string) => ciCollator.compare(a, b) === 0;
 const ciTagIndex = (q: string, tags: string[]) =>
    tags.findIndex((t) => ciCompare(t, q));
-//const ciDistinct = (items: string[]): string[] => {
-//    var deduped = [];
-//    var set = new Set();
 
-//    for (let x of items) {
-//        const key = x.toLocaleUpperCase();
-//        if (!set.has(key)) {
-//            set.add(key);
-//            deduped.push(x);
-//        }
-//    }
-//    return deduped;
-//}
-
-export interface PersistanceResult {
+export interface PersistenceResult {
    /**
     * True if no change was persisted to any store, but the UI should update to reflect the change.
     * */
@@ -115,7 +122,7 @@ export interface FailedIndividualRequest {
    error: string;
 }
 
-export interface PartialSuccessResult extends PersistanceResult {
+export interface PartialSuccessResult extends PersistenceResult {
    successfulIds: string[];
    failureIds: FailedIndividualRequest[];
 }
@@ -127,14 +134,14 @@ export const createDirtyPartialSuccessResult = (
 };
 
 export const standardizeTags = (tags: string[]) =>
-   tags.map((t) => t.toLowerCase());
+   tags.map((t) => t.toLowerCase().replace(/,+/g, "_"));
 
 const reducer = produce(
    (
       state: BookmarkState,
       action: actions.BookmarkAction | pocketActions.PocketBookmarksAction,
    ) => {
-      const applyToIds = (
+      const transformAffectedBookmarks = (
          results: PartialSuccessResult,
          transform: (bm: BookmarkData, id: string) => void,
       ) =>
@@ -143,20 +150,20 @@ const reducer = produce(
          );
 
       switch (action.type) {
-         case pocketActions.ActionType.FETCH_BOOKMARKS_SUCCESS: {
-            const { bookmarks, source } = action.response;
+         case actions.ActionType.LOAD: {
+            const { bookmarks, source } = action;
             state.bookmarks = bookmarks;
             state.source = source;
             break;
          }
 
          case actions.ActionType.REMOVE_SUCCESS: {
-            applyToIds(action.response, (_, id) => delete state.bookmarks[id]);
+            transformAffectedBookmarks(action.response, (_, id) => delete state.bookmarks[id]);
             break;
          }
 
          case actions.ActionType.ARCHIVE_SUCCESS: {
-            applyToIds(
+            transformAffectedBookmarks(
                action.response,
                (b) => (b.archive = action.payload.status),
             );
@@ -164,7 +171,7 @@ const reducer = produce(
          }
 
          case actions.ActionType.FAVORITE_SUCCESS: {
-            applyToIds(
+            transformAffectedBookmarks(
                action.response,
                (b) => (b.favorite = action.payload.status),
             );
@@ -176,7 +183,7 @@ const reducer = produce(
 
             // TODO: standardize tags in one place.
             const modifiedTags = tags.toLocaleLowerCase().split(",");
-            applyToIds(action.response, (b) => {
+            transformAffectedBookmarks(action.response, (b) => {
                switch (operation) {
                   case TagModification.add:
                      b.tags = [...new Set([...b.tags, ...modifiedTags])];
@@ -233,6 +240,14 @@ const reducer = produce(
 
          case actions.ActionType.FILTER_NOT_TAGS:
             state.filters.notFilterTags = standardizeTags(action.tags);
+            break;
+
+         case actions.ActionType.FILTER_ARCHIVE:
+            state.filters.archived = action.archived;
+            break;
+
+         case actions.ActionType.FILTER_FAVORITE:
+            state.filters.favorite = action.favorite;
             break;
       }
    },
@@ -311,6 +326,10 @@ const selectNotFilter = (state: AppState): string[] =>
    state.bookmarks.filters.notFilterTags;
 const selectContentFilter = (state: AppState): string =>
    state.bookmarks.filters.contentFilter;
+const selectArchiveFilter = (state: AppState): boolean|undefined =>
+    state.bookmarks.filters.archived;
+const selectFavoriteFilter = (state: AppState): boolean|undefined =>
+    state.bookmarks.filters.favorite;
 
 const _findMatchingBookmarks = (
    bookmarks: BookmarkData[],
@@ -381,6 +400,26 @@ const selectContentMatchedBookmarkIds = createSelector(
    },
 );
 
+const selectArchiveMatchedBookmarkIds = createSelector(
+    [selectBookmarkList, selectArchiveFilter],
+    (bookmarks, archiveFilter) =>
+        _findMatchingBookmarks(
+            bookmarks,
+            typeof archiveFilter !== "undefined",
+            (b) => b.archive === archiveFilter,
+        ),
+);
+
+const selectFavoriteMatchedBookmarkIds = createSelector(
+    [selectBookmarkList, selectFavoriteFilter],
+    (bookmarks, favoriteFilter) =>
+        _findMatchingBookmarks(
+            bookmarks,
+            typeof favoriteFilter !== "undefined",
+            (b) => b.favorite === favoriteFilter,
+        ),
+);
+   
 const selectFilteredBookmarkIds = createSelector(
    [
       selectBookmarkIds,
@@ -388,9 +427,19 @@ const selectFilteredBookmarkIds = createSelector(
       selectOrMatchedBookmarkIds,
       selectNotMatchedBookmarkIds,
       selectContentMatchedBookmarkIds,
+      selectArchiveMatchedBookmarkIds,
+      selectFavoriteMatchedBookmarkIds
    ],
-   (bookmarkIds, andMatches, orMatches, notMatches, contentMatches) => {
-      const filterMatches = [andMatches, orMatches, notMatches, contentMatches];
+   (
+       bookmarkIds, 
+       andMatches, 
+       orMatches, 
+       notMatches,
+       contentMatches,
+       archiveMatches,
+       favoriteMatches
+   ) => {
+      const filterMatches = [andMatches, orMatches, notMatches, contentMatches, archiveMatches, favoriteMatches];
       const matchesForActiveFilters = filterMatches.filter(
          (m) => m !== null,
       ) as Set<string>[];

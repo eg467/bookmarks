@@ -1,11 +1,12 @@
 import pocketApi from "../../../api/pocket-api";
-import { StartPromiseAction, PromiseSuccessAction, PromiseFailureAction, createPromiseAction, PromiseMiddlewareAction } from "../../middleware/promise-middleware";
-import { MyThunkResult, AppState } from "../../../redux/root/reducer";
-import { BookmarkCollection } from "../../../redux/bookmarks/bookmarks";
-import { StoreDispatch } from "../../../redux/store/configureStore";
-import action from "../../root/action";
-import { AnyAction } from "redux";
-import { BookmarkSource, BookmarkSourceType } from "../../bookmarks/reducer";
+import {
+   createPromiseAction,
+   PromiseFailureAction,
+   PromiseSuccessAction,
+   StartPromiseAction
+} from "../../middleware/promise-middleware";
+import {BookmarkCollection} from "../../../redux/bookmarks/bookmarks";
+import {BookmarkSource, BookmarkSourceType, SourceTrustLevel} from "../../bookmarks/reducer";
 
 export enum ActionType {
     FETCH_BOOKMARKS = "pocket/bookmarks/FETCH_BOOKMARKS",
@@ -40,6 +41,12 @@ export const actionCreators = {
             successType: ActionType.FETCH_BOOKMARKS_SUCCESS,
             failureType: ActionType.FETCH_BOOKMARKS_FAILURE,
             promise: () => pocketApi.retrieve({})
-                .then(bookmarks => <FetchBookmarksResponse>{ bookmarks, source: { description: "Pocket", type: BookmarkSourceType.pocket } })
+                .then(bookmarks => <FetchBookmarksResponse>{ 
+                   bookmarks, 
+                   source: {
+                      description: "Pocket",
+                      type: BookmarkSourceType.pocket,
+                      trusted: SourceTrustLevel.trusted 
+                   }})
         }),
 };

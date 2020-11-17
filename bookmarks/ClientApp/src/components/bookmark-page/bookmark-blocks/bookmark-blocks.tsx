@@ -35,7 +35,7 @@ class BookmarkBlocksComponent extends React.PureComponent<BookmarkBlocksProps, B
 
     constructor(props: BookmarkBlocksProps) {
         super(props);
-
+        
         this.cache = new CellMeasurerCache({
             defaultHeight: 250,
             defaultWidth: 300,

@@ -12,7 +12,7 @@ import { PropTypes, SvgIcon, SvgIconTypeMap } from "@material-ui/core";
 import { OverridableComponent } from "@material-ui/core/OverridableComponent";
 import { RequestStateType } from "../../redux/request-states/reducer";
 
-type LoadingButtonStyleProps = {
+type LoadingFabStyleProps = {
     diameter?: number;
     thickness?: number;
     color?: string;
@@ -22,9 +22,9 @@ type LoadingButtonStyleProps = {
 
 type OwnProps = {
     state?: RequestStateType,
-} & LoadingButtonStyleProps;
+} & LoadingFabStyleProps;
 
-type LoadingButtonProps = OwnProps & FabProps;
+type LoadingFabProps = OwnProps & FabProps;
 
 const useStyles = makeStyles((theme: Theme) =>
     createStyles({
@@ -36,7 +36,7 @@ const useStyles = makeStyles((theme: Theme) =>
             margin: theme.spacing(1),
             position: "relative",
         },
-        fab: ({ diameter, foregroundColor, backgroundColor }: LoadingButtonStyleProps) => ({
+        fab: ({ diameter, foregroundColor, backgroundColor }: LoadingFabStyleProps) => ({
             width: diameter,
             height: diameter,
             color: foregroundColor,
@@ -48,7 +48,7 @@ const useStyles = makeStyles((theme: Theme) =>
                 backgroundColor: green[700]
             }
         },
-        fabProgress: ({ diameter }: LoadingButtonStyleProps) => ({
+        fabProgress: ({ diameter }: LoadingFabStyleProps) => ({
             color: green[500],
             position: "absolute",
             top: `calc(50% - ${diameter}px / 2)`,
@@ -66,7 +66,7 @@ const useStyles = makeStyles((theme: Theme) =>
     })
 );
 
-const LoadingButton = ({
+const LoadingFab = ({
     state = RequestStateType.inactive,
     diameter = 50,
     thickness = 8,
@@ -74,7 +74,7 @@ const LoadingButton = ({
     foregroundColor,
     backgroundColor,
     ...rest
-}: LoadingButtonProps) => {
+}: LoadingFabProps) => {
     const classes = useStyles({ diameter, thickness, foregroundColor, backgroundColor }); 
 
 
@@ -98,4 +98,4 @@ const LoadingButton = ({
         </div>
     );
 }
-export default LoadingButton;
+export default LoadingFab;

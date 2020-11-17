@@ -1,5 +1,5 @@
 import * as actions from './actions';
-import { BookmarkCollection } from '../../../redux/bookmarks/bookmarks';
+import { BookmarkCollection } from '../../bookmarks/bookmarks';
 import { AppState } from '../../root/reducer';
 
 export interface PocketBookmarkState {

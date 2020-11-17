@@ -1,6 +1,6 @@
 {
-  "short_name": "ASP.NETCoreWebApplication",
-  "name": "ASP.NETCoreWebApplication",
+  "short_name": "reacttest",
+  "name": "reacttest",
   "icons": [
     {
       "src": "favicon.ico",

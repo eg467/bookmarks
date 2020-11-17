@@ -40,13 +40,14 @@ export const proxyImageSrc = (originalSrc: string, options: ProxyOptions = {}) =
 };
 
 export const ProxiedImg = React.forwardRef<HTMLImageElement, ProxiedImgProps & {}>((props, ref) => {
-   const { errorredirect, src, w, h, q, output, il, ...rest } = props;
+   const { errorredirect, src, w, h, q, output, il, alt, ...rest } = props;
    return (
       <img
          src={proxyImageSrc(src, props)}
          ref={ref}
+         alt={alt||""}
          {...rest}
-      />
+       />
    );
 });
 

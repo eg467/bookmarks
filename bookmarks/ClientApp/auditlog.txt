@@ -1,0 +1,86 @@
+# npm audit report
+
+elliptic  <6.5.3
+Severity: high
+Signature Malleability - https://npmjs.com/advisories/1547
+fix available via `npm audit fix`
+node_modules/elliptic
+
+http-proxy  <1.18.1
+Severity: high
+Denial of Service - https://npmjs.com/advisories/1486
+fix available via `npm audit fix`
+node_modules/http-proxy
+
+jquery  <3.5.0
+Severity: moderate
+Cross-Site Scripting - https://npmjs.com/advisories/1518
+fix available via `npm audit fix`
+node_modules/jquery
+
+lodash  <4.17.19
+Prototype Pollution - https://npmjs.com/advisories/1523
+fix available via `npm audit fix`
+node_modules/lodash
+
+node-forge  <=0.9.2
+Severity: high
+Prototype Pollution in node-forge - https://npmjs.com/advisories/1561
+fix available via `npm audit fix`
+node_modules/node-forge
+  selfsigned  1.1.1 - 1.10.7
+  Depends on vulnerable versions of node-forge
+  node_modules/selfsigned
+
+object-path  < 0.11.5
+Severity: high
+Prototype Pollution - https://npmjs.com/advisories/1573
+fix available via `npm audit fix`
+node_modules/object-path
+  adjust-sourcemap-loader  0.1.0 - 2.0.0
+  Depends on vulnerable versions of object-path
+  node_modules/adjust-sourcemap-loader
+    resolve-url-loader  0.0.1-experiment-postcss || 2.0.0 - 3.1.1 || >=4.0.0-alpha.1
+    Depends on vulnerable versions of adjust-sourcemap-loader
+    node_modules/resolve-url-loader
+      react-scripts  0.10.0-alpha.328cb32e - 3.4.3 || 4.0.0-next.64 - 4.0.0-next.98
+      Depends on vulnerable versions of resolve-url-loader
+      Depends on vulnerable versions of terser-webpack-plugin
+      Depends on vulnerable versions of webpack-dev-server
+      node_modules/react-scripts
+
+serialize-javascript  <3.1.0
+Severity: high
+Remote Code Execution - https://npmjs.com/advisories/1548
+fix available via `npm audit fix`
+node_modules/serialize-javascript
+  terser-webpack-plugin  <=1.4.3 || 2.0.0 - 2.3.5
+  Depends on vulnerable versions of serialize-javascript
+  node_modules/terser-webpack-plugin
+  node_modules/webpack/node_modules/terser-webpack-plugin
+    react-scripts  0.10.0-alpha.328cb32e - 3.4.3 || 4.0.0-next.64 - 4.0.0-next.98
+    Depends on vulnerable versions of resolve-url-loader
+    Depends on vulnerable versions of terser-webpack-plugin
+    Depends on vulnerable versions of webpack-dev-server
+    node_modules/react-scripts
+
+yargs-parser  <=13.1.1 || 14.0.0 - 15.0.0 || 16.0.0 - 18.1.1
+Prototype Pollution - https://npmjs.com/advisories/1500
+fix available via `npm audit fix`
+node_modules/webpack-dev-server/node_modules/yargs-parser
+  yargs  4.0.0-alpha1 - 12.0.5 || 14.1.0 || 15.0.0 - 15.2.0
+  Depends on vulnerable versions of yargs-parser
+  node_modules/webpack-dev-server/node_modules/yargs
+    webpack-dev-server  2.1.0-beta.0 - 3.10.3
+    Depends on vulnerable versions of yargs
+    node_modules/webpack-dev-server
+      react-scripts  0.10.0-alpha.328cb32e - 3.4.3 || 4.0.0-next.64 - 4.0.0-next.98
+      Depends on vulnerable versions of resolve-url-loader
+      Depends on vulnerable versions of terser-webpack-plugin
+      Depends on vulnerable versions of webpack-dev-server
+      node_modules/react-scripts
+
+15 vulnerabilities (4 low, 1 moderate, 10 high)
+
+To address all issues, run:
+  npm audit fix

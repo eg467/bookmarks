@@ -130,6 +130,7 @@ export default produce((state: RequestStatesState, action: RequestStateAction | 
                 delete state.bulkRequests[requestType];
                 break;
             }
+        default:
     }
 
     /**

@@ -21,7 +21,7 @@ import ArchiveIcon from "@material-ui/icons/Archive";
 import { proxyImageSrc } from "../../images/proxied-img";
 import { actionCreators } from "../../../redux/bookmarks/actions";
 import { TagModification } from "../../../api/bookmark-io";
-import LoadingButton from "../../common/LoadingButton";
+import LoadingFab from "../../common/LoadingFab";
 
 import { red, common } from "@material-ui/core/colors";
 import BookmarkTagEditor from "../../tags/BookmarkTagEditor";
@@ -146,7 +146,7 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
       if (!image) {
          handleLoad();
       }
-   }, [image, onLoad]);
+   }, [image, onLoad, handleLoad]);
 
    const domain = getHostName(url);
    const showFavicon = false;
@@ -155,7 +155,7 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
    const buttonSize = 38;
 
    const FavoriteButton = (): JSX.Element => (
-      <LoadingButton
+      <LoadingFab
          state={getReqStatus(RequestType.favorite)}
          aria-label={favorite ? "Unfavorite bookmark" : "Favorite bookmark"}
          onClick={() => setFavorite(!favorite)}
@@ -163,22 +163,22 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
          diameter={buttonSize}
       >
          <FavoriteIcon />
-      </LoadingButton>
+      </LoadingFab>
    );
 
    const ArchiveButton = (): JSX.Element => (
-      <LoadingButton
+      <LoadingFab
          state={getReqStatus(RequestType.archive)}
          aria-label={archive ? "Unarchive bookmark" : "Archive bookmark"}
          onClick={(): Promise<void> => setArchived(!archive)}
          diameter={buttonSize}
       >
          <ArchiveIcon />
-      </LoadingButton>
+      </LoadingFab>
    );
 
    const DeleteButton = (): JSX.Element => (
-      <LoadingButton
+      <LoadingFab
          state={getReqStatus(RequestType.remove)}
          aria-label="Remove bookmark"
          onClick={(): void => {
@@ -190,7 +190,7 @@ const BookmarkBlock: React.FC<ConnectedProps> = (props) => {
          diameter={buttonSize}
       >
          <DeleteIcon />
-      </LoadingButton>
+      </LoadingFab>
    );
 
 

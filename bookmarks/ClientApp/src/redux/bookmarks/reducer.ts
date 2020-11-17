@@ -85,7 +85,7 @@ export interface BookmarkState {
 export const initialState: BookmarkState = {
    bookmarks: {},
    sort: {
-      field: "url",
+      field: BookmarkSortField.url,
       ascending: true,
    },
    filters: {
@@ -456,6 +456,8 @@ const selectFilteredBookmarkIds = createSelector(
 
 const selectSort = (state: AppState) => state.bookmarks.sort;
 
+type BookmarkComparer = (a: BookmarkData, b: BookmarkData) => number;
+
 const selectSortedBookmarkIds = createSelector(
    [selectBookmarks, selectFilteredBookmarkIds, selectSort],
    (bookmarks, filteredKeys, sort) => {
@@ -467,14 +469,11 @@ const selectSortedBookmarkIds = createSelector(
 
       const domain = (url: string) => url.replace(regex, "");
       const comparisonsByField: {
-         [field in BookmarkSortField]: (
-            a: BookmarkData,
-            b: BookmarkData,
-         ) => number;
+         [field in BookmarkSortField]: BookmarkComparer;
       } = {
-         url: (a, b) => cmp(domain(a.url), domain(b.url)),
-         title: (a, b) => cmp(a.title, b.title),
-         date: (a, b) => cmp(a.time_added, b.time_added),
+         [BookmarkSortField.url]: (a, b) => cmp(domain(a.url), domain(b.url)),
+         [BookmarkSortField.title]: (a, b) => cmp(a.title, b.title),
+         [BookmarkSortField.date]: (a, b) => cmp(a.time_added, b.time_added),
       };
 
       const compareBookmarksBySelectedField = comparisonsByField[sort.field];

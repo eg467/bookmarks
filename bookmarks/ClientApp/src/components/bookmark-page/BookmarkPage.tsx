@@ -5,21 +5,15 @@ import {useSelector} from "react-redux";
 import {AppState} from "../../redux/root/reducer";
 import {BookmarkSourceType} from "../../redux/bookmarks/reducer";
 import { Redirect } from "react-router";
-import ImportPage from "../import/ImportPage";
-import MenuIcon from '@material-ui/icons/Menu';
 import BookmarksIcon from '@material-ui/icons/Bookmarks';
-import CloudDownloadIcon from '@material-ui/icons/CloudDownload';
-import ImportExportIcon from '@material-ui/icons/ImportExport';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 import FilterListIcon from '@material-ui/icons/FilterList';
 import SortIcon from '@material-ui/icons/Sort';
-import SettingsIcon from '@material-ui/icons/Settings';
-import { Link as RouterLink, LinkProps as RouterLinkProps } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import {makeStyles, createStyles, Theme, useTheme, CssBaseline, AppBar, Toolbar, IconButton, Typography, Drawer, Divider, List, ListItem, ListItemIcon, Button} from "@material-ui/core";
 import clsx from "clsx";
-import { BookmarkLink } from "./BookmarkLink";
-import {Link} from "react-router-dom"; 
+import Sort from "./Sort"; 
 
 export type DrawerContents = {
     component: React.ReactNode;
@@ -158,7 +152,7 @@ export const BookmarkPage: React.FC<{}> = () => {
                       <BookmarksIcon />
                   </Button>
                   {menuButton("Filters", <FilterListIcon />, () => <BookmarkFilters />,  )}
-                  {menuButton("Sort", <SortIcon />, () => <BookmarkFilters />,  )}
+                  {menuButton("Sort", <SortIcon />, () => <Sort />,  )}
               </Toolbar>
           </AppBar>
           <Drawer

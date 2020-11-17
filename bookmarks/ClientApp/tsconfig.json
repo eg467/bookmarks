@@ -13,6 +13,7 @@
     "downlevelIteration": true,
     "noEmit": true,
     "jsx": "preserve",
+    "types": [],
     "lib": [
       "es2015",
       "dom",
@@ -22,5 +23,11 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "./node_modules",
+    "./node_modules/*",
+    "./node_modules/@types/node/index.d.ts"
   ]
 }

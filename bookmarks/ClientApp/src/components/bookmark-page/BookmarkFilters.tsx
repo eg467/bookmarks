@@ -18,6 +18,7 @@ import {
 } from "@material-ui/core";
 import {useStoreDispatch} from "../../redux/store/configureStore";
 import {actionCreators} from "../../redux/bookmarks/actions";
+import { SelectedButtonGroup } from '../common/SelectedButtonGroup';
 
 type PartialProps = Partial<SelectProps>;
 
@@ -70,19 +71,22 @@ export const ContentFilter: React.FC<TextFieldProps> = ({...rest}) => {
     );
 };
 
-export type BinaryFilterProps = {
+export type TernaryFilterProps = {
     value: boolean|undefined;
     onChange: (value: boolean|undefined) => any;
 }
-export const BinaryFilter: React.FC<BinaryFilterProps> = ({value, onChange}) => {
-    const outlineType = (expectedValue: boolean|undefined) => value === expectedValue ? "contained" : "outlined";
-    return (
-        <ButtonGroup variant="outlined" size="small">
-            <Button onClick={() => onChange(true)} variant={outlineType(true)}>Show</Button>
-            <Button onClick={() => onChange(false)} variant={outlineType(false)}>Hide</Button>
-            <Button onClick={() => onChange(undefined)} variant={outlineType(undefined)}>All</Button>
-        </ButtonGroup>
-    );
+export const BinaryFilter: React.FC<TernaryFilterProps> = ({value, onChange}) => {
+    const options = new Map([
+        ["Show", true],
+        ["Hide", false],
+        ["All", undefined],
+    ]);
+
+    return (<SelectedButtonGroup
+        options={options} 
+        defaultValue={value}
+        onChange={onChange}
+    />);
 };
 
 export const ArchiveFilter: React.FC<{}> = () => {
@@ -110,7 +114,8 @@ const useStyles = makeStyles((theme: Theme) =>
         root: {
             padding: theme.spacing(1, 1),
             "& > label > *": {
-                margin: theme.spacing(1,1)
+                margin: theme.spacing(1,1),
+                display: "block"
             }
         },
         controlLabel: {

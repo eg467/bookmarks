@@ -15,6 +15,8 @@ export interface BookmarkData {
    excerpt?: string;
 }
 
-export type BookmarkSortField = "url" | "title" | "date";
+export enum BookmarkSortField {
+   url, title, date
+}
 
 export type BookmarkCollection = { [id: string]: BookmarkData };

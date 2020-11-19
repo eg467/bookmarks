@@ -11,7 +11,7 @@ interface HistoryState {
 }
 
 export type PocketAuthProps = {};
-export const PocketAuth: React.FC<PocketAuthProps> = ({}) => {
+export const PocketAuth: React.FC<PocketAuthProps> = () => {
    const history = useHistory();
    const auth = useSelector((s: AppState) => s.pocket.auth);
    const { error, loading, username } = auth;

@@ -1,7 +1,9 @@
 import * as actions from "./actions";
+import {selectors as rootSelectors} from "../selectors";
+
 import * as pocketActions from "../pocket/bookmarks/actions";
 import { createSelector } from "reselect";
-import { SetOps } from "../../utils";
+import { SetOps, ciEquals, deduplicate, removeNulls } from "../../utils";
 import {
    BookmarkSortField,
    BookmarkCollection,
@@ -11,13 +13,13 @@ import {
    BookmarkKeys,
    BookmarkPersister,
    TagModification,
-   noopBookmarkPersister,
    toArray,
 } from "../../api/bookmark-io";
 import pocketApi from "../../api/pocket-api";
 import { AppState } from "../root/reducer";
-import { RequestStatesState } from "../request-states/reducer";
+import {RequestState, RequestStatesState} from "../request-states/reducer";
 import produce from "immer";
+import { createInMemoryBookmarkPersister } from "../../api/createInMemoryBookmarkPersister";
 
 export enum BookmarkSourceType {
    /**
@@ -31,7 +33,7 @@ export enum BookmarkSourceType {
    /*
     * Imported from read-only json source, e.g. from a textbox or querystring
     */
-   json,
+   readonlyJson,
    /*
     * Json loaded from a source (e.g. jsonbin or myjson) owned or created by the user.
     */
@@ -64,6 +66,9 @@ export interface BookmarkState {
       field: BookmarkSortField;
       ascending: boolean;
    };
+   selected: {
+      [key: string]: boolean
+   },
    filters: {
       /** Matching bookmarks must include all these tags.  */
       andFilterTags: string[];
@@ -77,6 +82,8 @@ export interface BookmarkState {
       archived?: boolean;
       /** Matching bookmarks must be: true: favorite, false: not a favorite, undefined: either. */
       favorite?: boolean;
+      /** Matching bookmarks must be: true: selected, false: unselected, undefined: either. */
+      selected?: boolean;
    };
    source: BookmarkSource;
    requestStates: RequestStatesState;
@@ -88,11 +95,12 @@ export const initialState: BookmarkState = {
       field: BookmarkSortField.url,
       ascending: true,
    },
+   selected: {},
    filters: {
       andFilterTags: [],
       notFilterTags: [],
       orFilterTags: [],
-      contentFilter: "",
+      contentFilter: ""
    },
    source: {
       description: "Not loaded",
@@ -105,10 +113,9 @@ export const initialState: BookmarkState = {
    },
 };
 
-const ciCollator = new Intl.Collator("en-US", { sensitivity: "accent" });
-const ciCompare = (a: string, b: string) => ciCollator.compare(a, b) === 0;
+
 const ciTagIndex = (q: string, tags: string[]) =>
-   tags.findIndex((t) => ciCompare(t, q));
+   tags.findIndex((t) => ciEquals(t, q));
 
 export interface PersistenceResult {
    /**
@@ -123,9 +130,16 @@ export interface FailedIndividualRequest {
 }
 
 export interface PartialSuccessResult extends PersistenceResult {
-   successfulIds: string[];
-   failureIds: FailedIndividualRequest[];
+   successfulIds: Nullable<string>[];
+   failureIds: Nullable<FailedIndividualRequest>[];
 }
+
+export const createDirtyPartialSuccessResultPromise  = (
+   keys: BookmarkKeys
+) => {
+   const result = createDirtyPartialSuccessResult(keys);
+   return Promise.resolve(result);
+};
 
 export const createDirtyPartialSuccessResult = (
    keys: BookmarkKeys,
@@ -133,8 +147,9 @@ export const createDirtyPartialSuccessResult = (
    return { dirtyChange: true, successfulIds: toArray(keys), failureIds: [] };
 };
 
+
 export const standardizeTags = (tags: string[]) =>
-   tags.map((t) => t.toLowerCase().replace(/,+/g, "_"));
+   deduplicate(tags.map((t) => t.toLocaleLowerCase().replace(/,+/g, "_")));
 
 const reducer = produce(
    (
@@ -144,16 +159,25 @@ const reducer = produce(
       const transformAffectedBookmarks = (
          results: PartialSuccessResult,
          transform: (bm: BookmarkData, id: string) => void,
-      ) =>
-         results.successfulIds.forEach((id) =>
+      ) => {
+         removeNulls(results.successfulIds).forEach((id) =>
             transform(state.bookmarks[id], id),
          );
+      }
 
       switch (action.type) {
          case actions.ActionType.LOAD: {
             const { bookmarks, source } = action;
             state.bookmarks = bookmarks;
             state.source = source;
+            break;
+         }
+
+         case actions.ActionType.ADD_SUCCESS: {
+            action.response.addedBookmarks.forEach(b => {
+               state.bookmarks[b.id] = b;
+            });
+            
             break;
          }
 
@@ -249,6 +273,25 @@ const reducer = produce(
          case actions.ActionType.FILTER_FAVORITE:
             state.filters.favorite = action.favorite;
             break;
+
+         case actions.ActionType.FILTER_SELECTED:
+            state.filters.selected = action.selected;
+            break;
+            
+         case actions.ActionType.SELECT:
+            let {bookmarkIds, selected} = action;
+            
+            // If no bookmarks were passed, apply to every bookmark
+            if(bookmarkIds === undefined) {
+               bookmarkIds = Object.keys(state.bookmarks);
+            }
+            
+            const ids = toArray(bookmarkIds);
+            if(selected) {
+               ids.forEach(k => state.selected[k] = true);
+            } else {
+               ids.forEach(id => delete state.selected[id]);   
+            }
       }
    },
    initialState,
@@ -290,30 +333,25 @@ export const selectAllTags = createSelector(
 // SOURCE
 
 const selectBookmarkSource = (state: AppState) => state.bookmarks.source;
-const selectBookmarkPersister = createSelector(
-   [selectBookmarkSource],
-   (src) => {
-      if (!src) {
-         return noopBookmarkPersister as BookmarkPersister;
-      }
 
+const selectBookmarkPersister = createSelector(
+   [selectBookmarkSource, selectBookmarks],
+   (src, currentBookmarks) => {
       switch (src.type) {
          case BookmarkSourceType.pocket:
             return pocketApi as BookmarkPersister;
-         case BookmarkSourceType.savedJson:
-            // TODO: create and change this to a jsonbin persister.
-            return noopBookmarkPersister as BookmarkPersister;
 
          default:
-            return noopBookmarkPersister as BookmarkPersister;
+            return createInMemoryBookmarkPersister(currentBookmarks);
       }
    },
 );
 
+export type CapabilityQuery = (key: Exclude<keyof BookmarkPersister, "sourceType">) => boolean;
 const selectCapabilities = createSelector(
    [selectBookmarkPersister],
-   (persister) => (key: Exclude<keyof BookmarkPersister, "sourceType">) =>
-      !!persister[key],
+   (persister) => ((key: Exclude<keyof BookmarkPersister, "sourceType">) =>
+      !!persister[key]) as CapabilityQuery,
 );
 
 // FILTERS
@@ -331,16 +369,23 @@ const selectArchiveFilter = (state: AppState): boolean|undefined =>
 const selectFavoriteFilter = (state: AppState): boolean|undefined =>
     state.bookmarks.filters.favorite;
 
+/**
+ * Finds a set containing the matching bookmark ids if the filter is active. 
+ * @param bookmarks
+ * @param shouldFilter
+ * @param filter
+ */
 const _findMatchingBookmarks = (
    bookmarks: BookmarkData[],
    shouldFilter: boolean,
    filter: (b: BookmarkData) => boolean,
-) =>
-   shouldFilter
-      ? (new Set(bookmarks.filter(filter).map((b) => b.id)) as ReadonlySet<
-           string
-        >)
-      : null;
+) => {
+   const findIds = () => bookmarks
+      .filter(filter)
+      .map((b) => b.id)
+   return shouldFilter ? new Set(findIds()) : null;
+}
+   
 
 const selectAndMatchedBookmarkIds = createSelector(
    [selectBookmarkList, selectAndFilter],
@@ -400,13 +445,22 @@ const selectContentMatchedBookmarkIds = createSelector(
    },
 );
 
+const selectSelectedBookmarks = (state:AppState): {[key: string]: boolean} => state.bookmarks.selected;
+// noinspection PointlessBooleanExpressionJS
+const selectBookmarkSelection = (state:AppState, bookmarkId: string): boolean => !!selectSelectedBookmarks(state)[bookmarkId];
+const selectBookmarkSelectionFilter = (state:AppState): boolean | undefined  => state.bookmarks.filters.selected;
+const selectSelectedBookmarkIds = createSelector(
+   [selectSelectedBookmarks],
+   (selectedBookmarks) => new Set(Object.keys(selectedBookmarks))
+);
+
 const selectArchiveMatchedBookmarkIds = createSelector(
     [selectBookmarkList, selectArchiveFilter],
     (bookmarks, archiveFilter) =>
         _findMatchingBookmarks(
             bookmarks,
             typeof archiveFilter !== "undefined",
-            (b) => b.archive === archiveFilter,
+            (b) => !b.archive === !archiveFilter,
         ),
 );
 
@@ -416,8 +470,20 @@ const selectFavoriteMatchedBookmarkIds = createSelector(
         _findMatchingBookmarks(
             bookmarks,
             typeof favoriteFilter !== "undefined",
-            (b) => b.favorite === favoriteFilter,
+            (b) => !b.favorite === !favoriteFilter,
         ),
+);
+
+// '!!' Needed to compare undefined vs T/F.
+// noinspection PointlessBooleanExpressionJS
+const selectSelectedMatchedBookmarkIds = createSelector(
+   [selectBookmarkList, selectSelectedBookmarks, selectBookmarkSelectionFilter],
+   (bookmarks, selectedBookmarks, selectionFilter) =>
+      _findMatchingBookmarks(
+         bookmarks,
+         typeof selectionFilter !== "undefined",
+         (b) => !!selectedBookmarks[b.id] === selectionFilter,
+      ),
 );
    
 const selectFilteredBookmarkIds = createSelector(
@@ -428,7 +494,8 @@ const selectFilteredBookmarkIds = createSelector(
       selectNotMatchedBookmarkIds,
       selectContentMatchedBookmarkIds,
       selectArchiveMatchedBookmarkIds,
-      selectFavoriteMatchedBookmarkIds
+      selectFavoriteMatchedBookmarkIds,
+      selectSelectedMatchedBookmarkIds
    ],
    (
        bookmarkIds, 
@@ -437,9 +504,10 @@ const selectFilteredBookmarkIds = createSelector(
        notMatches,
        contentMatches,
        archiveMatches,
-       favoriteMatches
+       favoriteMatches,
+       sectionMatches
    ) => {
-      const filterMatches = [andMatches, orMatches, notMatches, contentMatches, archiveMatches, favoriteMatches];
+      const filterMatches = [andMatches, orMatches, notMatches, contentMatches, archiveMatches, favoriteMatches, sectionMatches];
       const matchesForActiveFilters = filterMatches.filter(
          (m) => m !== null,
       ) as Set<string>[];
@@ -486,6 +554,8 @@ const selectSortedBookmarkIds = createSelector(
 
 // END SORTING
 
+
+
 // COMBINED SELECTORS
 
 export const selectors = {
@@ -493,6 +563,7 @@ export const selectors = {
    selectBookmarkPersister,
    selectCapabilities,
    selectBookmarks,
+   selectBookmarkList,
    selectBookmark,
    selectAllTags,
    selectBookmarkIds,
@@ -507,6 +578,9 @@ export const selectors = {
    selectFilteredBookmarkIds,
    selectSort,
    selectSortedBookmarkIds,
+   selectSelectedBookmarks,
+   selectBookmarkSelection,
+   selectSelectedBookmarkIds
 };
 
 // END COMBINED SELECTORS

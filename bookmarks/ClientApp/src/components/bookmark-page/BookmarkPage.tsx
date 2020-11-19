@@ -1,6 +1,6 @@
 import React, { Fragment } from "react";
 import BookmarkFilters from "./BookmarkFilters";
-import BookmarkBlocks from "./bookmark-blocks/bookmark-blocks";
+import BookmarkBlocks from "./BookmarkBlocks";
 import {useSelector} from "react-redux";
 import {AppState} from "../../redux/root/reducer";
 import {BookmarkSourceType} from "../../redux/bookmarks/reducer";
@@ -9,11 +9,13 @@ import BookmarksIcon from '@material-ui/icons/Bookmarks';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 import FilterListIcon from '@material-ui/icons/FilterList';
+import SelectionsIcon from '@material-ui/icons/DoneAll';
 import SortIcon from '@material-ui/icons/Sort';
 import { Link as RouterLink } from 'react-router-dom';
-import {makeStyles, createStyles, Theme, useTheme, CssBaseline, AppBar, Toolbar, IconButton, Typography, Drawer, Divider, List, ListItem, ListItemIcon, Button} from "@material-ui/core";
+import {makeStyles, createStyles, Theme, useTheme, CssBaseline, AppBar, Toolbar, IconButton, Typography, Drawer, Divider, Button} from "@material-ui/core";
 import clsx from "clsx";
-import Sort from "./Sort"; 
+import Sort from "./Sort";
+import {SelectionMenu} from "../selection/SelectionMenu"; 
 
 export type DrawerContents = {
     component: React.ReactNode;
@@ -70,7 +72,7 @@ const useStyles = makeStyles((theme: Theme) =>
         drawerTitle: {
                         
         },
-        content: {
+        contentContainer: {
             flexGrow: 1,
             padding: theme.spacing(3),
             transition: theme.transitions.create('margin', {
@@ -98,10 +100,6 @@ export const BookmarkPage: React.FC<{}> = () => {
     if(bookmarkSourceType === BookmarkSourceType.none) {
         return <Redirect to="/import" />
     }
-
-    const handleDrawerOpen = (contents: DrawerContents) => {
-        setDrawerComponent(contents);
-    };
 
     const handleDrawerClose = () => {
         setDrawerComponent(null);
@@ -136,23 +134,12 @@ export const BookmarkPage: React.FC<{}> = () => {
               })}
           >
               <Toolbar>
-                  {/*
-                  <IconButton
-                      color="inherit"
-                      aria-label="open drawer"
-                      onClick={handleDrawerOpen}
-                      edge="start"
-                      className={clsx(classes.menuButton, drawerComponent && classes.hide)}
-                  >
-                      <MenuIcon />
-                  </IconButton>
-                  */}
-
                   <Button color="default" component={RouterLink} to="/bookmarks">
                       <BookmarksIcon />
                   </Button>
                   {menuButton("Filters", <FilterListIcon />, () => <BookmarkFilters />,  )}
                   {menuButton("Sort", <SortIcon />, () => <Sort />,  )}
+                  {menuButton("Selection", <SelectionsIcon />, () => <SelectionMenu />,  )}
               </Toolbar>
           </AppBar>
           <Drawer
@@ -179,7 +166,7 @@ export const BookmarkPage: React.FC<{}> = () => {
               </Fragment>
           </Drawer>
           <main
-              className={clsx(classes.content, {
+              className={clsx(classes.contentContainer, {
                   [classes.contentShift]: !!drawerComponent,
               })}
           >

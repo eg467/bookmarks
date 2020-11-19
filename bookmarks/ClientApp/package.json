@@ -50,6 +50,7 @@
     "eslint-plugin-prettier": "^3.1.4",
     "eslint-plugin-react": "7.16.0",
     "nan": "^2.14.1",
+    "node": "^14.15.1",
     "prettier": "^2.1.2",
     "redux-devtools-extension": "^2.13.8",
     "redux-mock-store": "^1.5.4",

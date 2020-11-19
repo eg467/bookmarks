@@ -1,8 +1,8 @@
 import {
-    AddBookmarkInput,
+    BookmarkSeed,
     BookmarkKeys,
     BookmarkPersister,
-    TagModification,
+    TagModification, AddBookmarkResults,
 } from "../../api/bookmark-io";
 import { NullAction } from "../common/actions";
 import {
@@ -58,6 +58,9 @@ export enum ActionType {
     FILTER_CONTENT = "bookmarks/FILTER_CONTENT",
     FILTER_ARCHIVE = "bookmarks/FILTER_ARCHIVE",
     FILTER_FAVORITE = "bookmarks/FILTER_FAVORITE",
+    FILTER_SELECTED = "bookmarks/FILTER_SELECTED",
+    
+    SELECT = "bookmarks/SELECT",
 }
 
 // ACTIONS
@@ -69,7 +72,7 @@ export interface LoadBookmarksAction {
 }
 
 export type AddBookmarkActionPayload = {
-    bookmarks: AddBookmarkInput[];
+    bookmarks: OneOrMany<BookmarkSeed>;
 };
 export type AddBookmarkAction = StartPromiseAction<
     ActionType.ADD,
@@ -77,7 +80,7 @@ export type AddBookmarkAction = StartPromiseAction<
     >;
 export type AddBookmarkSuccessAction = PromiseSuccessAction<
     ActionType.ADD_SUCCESS,
-    PartialSuccessResult,
+    AddBookmarkResults,
     AddBookmarkActionPayload
     >;
 export type AddBookmarkFailureAction = PromiseFailureAction<
@@ -259,44 +262,30 @@ export interface SetFilterFavoriteAction {
     favorite?: boolean;
 }
 
+export interface SetFilterSelectedAction {
+    type: ActionType.FILTER_SELECTED;
+    selected?: boolean;
+}
+
+export interface SelectAction {
+    type: ActionType.SELECT;
+    bookmarkIds?: BookmarkKeys,
+    selected: boolean
+}
 
 export type BookmarkAction =
-    | LoadBookmarksAction
-    | AddBookmarkAction
-    | AddBookmarkSuccessAction
-    | AddBookmarkFailureAction
-    | AddBookmarkClearAction
-    | RemoveBookmarkAction
-    | RemoveBookmarkSuccessAction
-    | RemoveBookmarkFailureAction
-    | RemoveBookmarkClearAction
-    | ArchiveBookmarkAction
-    | ArchiveBookmarkSuccessAction
-    | ArchiveBookmarkFailureAction
-    | ArchiveBookmarkClearAction
-    | FavoriteBookmarkAction
-    | FavoriteBookmarkSuccessAction
-    | FavoriteBookmarkFailureAction
-    | FavoriteBookmarkClearAction
-    | ModifyTagsAction
-    | ModifyTagsSuccessAction
-    | ModifyTagsFailureAction
-    | ModifyTagsClearAction
-    | RenameTagAction
-    | RenameTagSuccessAction
-    | RenameTagFailureAction
-    | RenameTagClearAction
-    | DeleteTagAction
-    | DeleteTagSuccessAction
-    | DeleteTagFailureAction
-    | DeleteTagClearAction
+    | LoadBookmarksAction 
+    | AddBookmarkAction | AddBookmarkSuccessAction | AddBookmarkFailureAction | AddBookmarkClearAction
+    | RemoveBookmarkAction | RemoveBookmarkSuccessAction | RemoveBookmarkFailureAction | RemoveBookmarkClearAction
+    | ArchiveBookmarkAction | ArchiveBookmarkSuccessAction | ArchiveBookmarkFailureAction | ArchiveBookmarkClearAction
+    | FavoriteBookmarkAction | FavoriteBookmarkSuccessAction | FavoriteBookmarkFailureAction | FavoriteBookmarkClearAction
+    | ModifyTagsAction | ModifyTagsSuccessAction | ModifyTagsFailureAction | ModifyTagsClearAction
+    | RenameTagAction | RenameTagSuccessAction | RenameTagFailureAction | RenameTagClearAction
+    | DeleteTagAction | DeleteTagSuccessAction | DeleteTagFailureAction | DeleteTagClearAction
     | SortBookmarksAction
-    | SetFilterAndTagsAction
-    | SetFilterOrTagsAction
-    | SetFilterNotTagsAction
-    | SetContentFilterAction
-    | SetFilterArchiveAction
-    | SetFilterFavoriteAction
+    | SetFilterAndTagsAction | SetFilterOrTagsAction | SetFilterNotTagsAction | SetContentFilterAction 
+    | SetFilterArchiveAction | SetFilterFavoriteAction | SetFilterSelectedAction
+    | SelectAction
     | NullAction;
 
 // END ACTIONS
@@ -315,7 +304,7 @@ export const actionCreators = {
         bookmarks,
         source,
     }),
-
+    
     loadSerializedBookmarks: (
         serializedBookmarks: string,
         source: BookmarkSource,
@@ -340,31 +329,33 @@ export const actionCreators = {
     }),
 
     setAndFilter: (tags: string[]): SetFilterAndTagsAction => ({
-        type: ActionType.FILTER_AND_TAGS,
-        tags,
+        type: ActionType.FILTER_AND_TAGS, tags,
     }),
     setOrFilter: (tags: string[]): SetFilterOrTagsAction => ({
-        type: ActionType.FILTER_OR_TAGS,
-        tags,
+        type: ActionType.FILTER_OR_TAGS, tags,
     }),
     setNotFilter: (tags: string[]): SetFilterNotTagsAction => ({
-        type: ActionType.FILTER_NOT_TAGS,
-        tags,
+        type: ActionType.FILTER_NOT_TAGS, tags,
     }),
     setContentFilter: (q: string): SetContentFilterAction => ({
-        type: ActionType.FILTER_CONTENT,
-        q
+        type: ActionType.FILTER_CONTENT, q
     }),
     setArchiveFilter: (archived: boolean|undefined): SetFilterArchiveAction => ({
-        type: ActionType.FILTER_ARCHIVE,
-        archived
+        type: ActionType.FILTER_ARCHIVE, archived
     }),
     setFavoriteFilter: (favorite: boolean|undefined): SetFilterFavoriteAction => ({
-        type: ActionType.FILTER_FAVORITE,
-        favorite
+        type: ActionType.FILTER_FAVORITE, favorite
     }),
+    setSelectedFilter: (selected: boolean|undefined): SetFilterSelectedAction => ({
+        type: ActionType.FILTER_SELECTED, selected
+    }),
+
+    select: (selected: boolean, bookmarkIds?: BookmarkKeys): SelectAction => ({
+        type: ActionType.SELECT, selected, bookmarkIds
+    }),
+    
     get add() {
-        return (bookmarks: AddBookmarkInput[]): MyThunkResult<Promise<void>> => {
+        return (bookmarks: BookmarkSeed[]): MyThunkResult<Promise<void>> => {
             return async (dispatch: StoreDispatch, getState): Promise<void> => {
                 const persister = getPersister(getState);
 
@@ -376,23 +367,13 @@ export const actionCreators = {
                         promise: () =>
                             persister && persister.add
                                 ? persister.add(bookmarks)
-                                : Promise.reject(
-                                Error("Unsupported bookmark operation."),
-                                ),
+                                : Promise.reject(Error("Unsupported bookmark operation.")),
                         payload: { bookmarks } as AddBookmarkActionPayload,
                     }),
                 ).catch((e) => {
                     // TODO: Add user error notifications in UI & Redux state.
                     console.error(e);
                 });
-
-                // Refresh the page after adding new bookmarks.
-                // (Sometimes API responses to adding new bookmarks)
-                if (persister.refresh) {
-                    const newBookmarks = await persister.refresh();
-                    const source = selectors.selectBookmarkSource(getState());
-                    dispatch(this.loadBookmarks(newBookmarks, source));
-                }
             };
         };
     },
@@ -417,11 +398,11 @@ export const actionCreators = {
     },
 
     archive: (
-        keys: BookmarkKeys,
-        status: boolean,
+       input: BookmarkToggleActionPayload,
     ): MyThunkResult<Promise<void>> => {
         return async (dispatch: StoreDispatch, getState): Promise<void> => {
             const persister = getPersister(getState);
+            const { keys, status } = input;
             await dispatch(
                 createPromiseAction({
                     startType: ActionType.ARCHIVE,
@@ -431,7 +412,7 @@ export const actionCreators = {
                         persister.archive
                             ? persister.archive(keys, status)
                             : Promise.reject(Error("Unsupported bookmark operation.")),
-                    payload: { keys } as BookmarkToggleActionPayload,
+                    payload: input,
                 }),
             );
         };

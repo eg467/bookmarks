@@ -1,8 +1,15 @@
 ﻿import { BookmarkCollection, BookmarkData } from "../redux/bookmarks/bookmarks";
-import { BookmarkSource, BookmarkSourceType, PartialSuccessResult } from "../redux/bookmarks/reducer";
+import {
+    BookmarkSource,
+    BookmarkSourceType,
+    PartialSuccessResult,
+    PersistenceResult, 
+    standardizeTags
+} from "../redux/bookmarks/reducer";
+import { standardizeUrl } from "../utils";
 
-export const toArray = (keys: BookmarkKeys) => Array.isArray(keys) ? keys : [keys];
-export type BookmarkKeys = string | string[];
+export const toArray = <T>(keys: OneOrMany<T>) => Array.isArray(keys) ? keys : [keys];
+export type BookmarkKeys = OneOrMany<string>;
 export enum TagModification {
     set, add, remove
 }
@@ -23,19 +30,36 @@ export interface BookmarkExporter {
 export interface AddBookmarkError {
     message: string;
     index: number;
-    input: AddBookmarkInput;
+    input: BookmarkSeed;
 }
 
-export interface AddBookmarkInput {
+export interface BookmarkSeed {
     url: string;
     tags: string[];
 }
 
+export const isUrl = (url: string) => {
+    try {
+        let _ = new URL(url);
+        return true
+    } catch(_) {
+        return false;
+    }
+};
+
+export const standardizeBookmarkSeed = (seed: BookmarkSeed): BookmarkSeed => ({
+    url: standardizeUrl(seed.url),
+    tags: standardizeTags(seed.tags)
+});
+
+export type AddBookmarkResults = {
+    addedBookmarks: BookmarkData[];
+    results: PartialSuccessResult;
+}
+
 export interface BookmarkPersister {
     sourceType: BookmarkSourceType;
-    refresh?: () => Promise<BookmarkCollection>;
-
-    add?: (bookmark: AddBookmarkInput | AddBookmarkInput[]) => Promise<PartialSuccessResult>;
+    add?: (bookmark: BookmarkSeed | BookmarkSeed[]) => Promise<AddBookmarkResults>;
     remove?: (keys: BookmarkKeys) => Promise<PartialSuccessResult>;
     archive?: (keys: BookmarkKeys, status: boolean) => Promise<PartialSuccessResult>;
     favorite?: (keys: BookmarkKeys, status: boolean) => Promise<PartialSuccessResult>;
@@ -53,13 +77,15 @@ export interface BookmarkPersister {
      * @param oldTag
      * @param newTag
      */
-    renameTag?: (oldTag: string, newTag: string) => Promise<void>;
+    renameTag?: (oldTag: string, newTag: string) => Promise<PersistenceResult>;
 
     /**
       * Delete a tag. This affects all items with this tag.
       * @param tag The name of the tag to delete.
       */
-    deleteTag?: (tag: string) => Promise<void>;
+    deleteTag?: (tag: string) => Promise<PersistenceResult>;
 }
 
-export const noopBookmarkPersister: Partial<BookmarkPersister> = {};
+
+
+

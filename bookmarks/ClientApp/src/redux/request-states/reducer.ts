@@ -1,5 +1,4 @@
-﻿import { Bookmark } from '@material-ui/icons';
-import produce from 'immer';
+﻿import produce from 'immer';
 import { createSelector } from 'reselect';
 import { BookmarkKeys, toArray } from '../../api/bookmark-io';
 import { BookmarkAction, ActionType as bookmarkActionType } from '../bookmarks/actions';
@@ -19,7 +18,9 @@ export type RequestState = {
     error?: string;
 }
 
-export enum RequestStateType { inactive, error, success, pending };
+export enum RequestStateType { 
+    inactive, error, success, pending 
+}
 
 // Remember to add these as new operations are added.
 export enum RequestType {
@@ -134,11 +135,12 @@ export default produce((state: RequestStatesState, action: RequestStateAction | 
     }
 
     /**
-    * Relies on action type naming convention where corresponding types end in:
-    * 'SUCCESS', 'CLEAR', and a variably ending pending state.
-    * @param container
-    * @param requestType
-    */
+     * Relies on action type naming convention where corresponding types end in:
+     * 'SUCCESS', 'CLEAR', and a variably ending pending state.
+     * @param container
+     * @param requestType
+     * @param error
+     */
     function setReqStateInContainer(container: StateByRequest, requestType: RequestType, error?: string) {
         // Use naming convention to avoid boilerplate typing.
         const actionType = action.type.toUpperCase();
@@ -198,12 +200,17 @@ export const readRequestState = (states: StateByRequest | undefined, reqType: Re
     return (states || {})[reqType] || makeReqState.clear();
 }
 
+export type CreateSelectRequestStateType = {
+    states: StateByRequest,
+    bulkStates: StateByRequest,
+    reqStatus: (reqType: RequestType) => RequestState;
+}
 const createSelectRequestState = () => {
     return createSelector(
         [selectRequestStatesForBookmark, selectBulkRequestStates, _idProp],
-        (states, bulkStates, id) => {
+        (states, bulkStates, id): CreateSelectRequestStateType => {
             return {
-                states: states,
+                states,
                 bulkStates,
                 reqStatus: (reqType: RequestType) => readRequestState(states, reqType)
             };
@@ -211,5 +218,9 @@ const createSelectRequestState = () => {
 };
 
 export const selectors = {
-    selectRequestStates, selectBulkRequestStates, createSelectRequestState, selectRequestStatesByBookmark, selectRequestStatesForBookmark
+    selectRequestStates, 
+    selectBulkRequestStates, 
+    createSelectRequestState, 
+    selectRequestStatesByBookmark, 
+    selectRequestStatesForBookmark
 };

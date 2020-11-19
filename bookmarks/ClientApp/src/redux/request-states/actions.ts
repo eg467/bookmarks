@@ -1,9 +1,5 @@
-﻿import { ActionCreator, AnyAction } from "redux";
-import { AddBookmarkInput, BookmarkKeys, TagModification } from "../../api/bookmark-io";
+﻿import { BookmarkKeys } from "../../api/bookmark-io";
 import { NullAction } from "../common/actions";
-import { createPromiseAction, PromiseClearingAction, PromiseDispatch, PromiseFailureAction, PromiseMiddlewareAction, PromiseSuccessAction, StartPromiseAction } from "../middleware/promise-middleware";
-import { AppState, MyThunkResult } from "../root/reducer";
-import { StoreDispatch } from "../store/configureStore";
 import { RequestState, RequestType } from "./reducer";
 
 export enum ActionType {

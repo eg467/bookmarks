@@ -9,10 +9,6 @@ import Select, { SelectProps } from '../tags/Select';
 import {
     Typography,
     TextField,
-    Checkbox,
-    FormControlLabel,
-    ButtonGroup,
-    Button,
     makeStyles,
     Theme, createStyles, TextFieldProps
 } from "@material-ui/core";
@@ -77,16 +73,18 @@ export type TernaryFilterProps = {
 }
 export const BinaryFilter: React.FC<TernaryFilterProps> = ({value, onChange}) => {
     const options = new Map([
-        ["Show", true],
-        ["Hide", false],
-        ["All", undefined],
+       ["Show", true],
+       ["Hide", false],
+       ["All", undefined],
     ]);
 
-    return (<SelectedButtonGroup
-        options={options} 
-        defaultValue={value}
-        onChange={onChange}
-    />);
+    return (
+      <SelectedButtonGroup
+         options={options}
+         defaultSelection={value}
+         onSelectionChange={onChange}
+      />
+    );
 };
 
 export const ArchiveFilter: React.FC<{}> = () => {
@@ -107,6 +105,16 @@ export const FavoriteFilter: React.FC<{}> = () => {
             value={value}
             onChange={q => dispatch(actionCreators.setFavoriteFilter(q))} />
     );
+};
+
+export const SelectionFilter: React.FC<{}> = () => {
+   const value = useSelector((state: AppState) => state.bookmarks.filters.selected);
+   const dispatch = useStoreDispatch();
+   return (
+      <BinaryFilter
+         value={value}
+         onChange={selected => dispatch(actionCreators.setSelectedFilter(selected))} />
+   );
 };
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -152,7 +160,15 @@ export default function () {
             </label>
 
             {header("Status")}
-            <label>
+
+           <label>
+              <span>Selected</span>
+              <div>
+                 <SelectionFilter />
+              </div>
+           </label>
+
+           <label>
                 <span>Archive</span>
                 <div>
                     <ArchiveFilter />

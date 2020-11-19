@@ -1,18 +1,20 @@
 //import axios from 'axios';
-import { BookmarkCollection } from "../redux/bookmarks/bookmarks";
+import {BookmarkCollection, BookmarkData} from "../redux/bookmarks/bookmarks";
+import constants from "../constants/constants";
 import {
    BookmarkSourceType,
    FailedIndividualRequest,
-   PartialSuccessResult,
+   PartialSuccessResult, PersistenceResult,
 } from "../redux/bookmarks/reducer";
 import {
-   AddBookmarkInput,
+   BookmarkSeed, AddBookmarkResults,
    BookmarkKeys,
    BookmarkPersister,
    TagModification,
    toArray,
 } from "./bookmark-io";
 import storage from "./local-storage";
+import { removeNulls } from "../utils";
 
 export interface PocketApiAuthState {
    requestToken: string;
@@ -82,10 +84,6 @@ export class PocketApi implements BookmarkPersister {
 
    public get isAuthenticated() {
       return !!this.authStorage.get().accessToken;
-   }
-
-   public get requiresAuthorization() {
-      return !!this.authStorage.get().requestToken;
    }
 
    /**
@@ -330,8 +328,7 @@ export class PocketApi implements BookmarkPersister {
       const key = (i: number) => getKey(results[i], i);
 
       const successfulIds = results
-         .map((x, i) => (x ? key(i) : null))
-         .filter((x): x is string => x !== null);
+         .map((x, i) => (x ? key(i) : null));
 
       const failureIds = errors
          .map((x, i) =>
@@ -341,8 +338,7 @@ export class PocketApi implements BookmarkPersister {
                     error: `${x.type}: ${x.error}`,
                  } as FailedIndividualRequest)
                : null,
-         )
-         .filter((x): x is FailedIndividualRequest => x !== null);
+         );
 
       return {
          dirtyChange: failureIds.length > 0,
@@ -390,12 +386,9 @@ export class PocketApi implements BookmarkPersister {
    }
 
    /* POCKET ACTIONS */
-   async add(bookmarkSeed: AddBookmarkInput | AddBookmarkInput[]) {
-      const bookmarkSeeds: AddBookmarkInput[] = Array.isArray(bookmarkSeed)
-         ? bookmarkSeed
-         : [bookmarkSeed];
-
-      const actions = bookmarkSeeds.map(
+   async add(bookmarkSeed: BookmarkSeed | BookmarkSeed[]) {
+      const bookmarkSeeds = toArray(bookmarkSeed);
+      const apiActions = bookmarkSeeds.map(
          (b) =>
             <ActionParameters>{
                action: "add",
@@ -404,9 +397,31 @@ export class PocketApi implements BookmarkPersister {
             },
       );
 
-      return this.bookmarkModification(actions).then((r) =>
-         this.parseBatchActionResponse((x, _) => x.item_id, r.data),
-      );
+      return this.bookmarkModification(apiActions)
+         .then((r) =>
+            this.parseBatchActionResponse((x, _) => x.item_id, r.data),
+         )
+         .then(async (results) => {
+            
+            const includesAllNewKeys = (latest: BookmarkCollection) =>
+               results.successfulIds.every(id => id !== null && latest[id]) 
+            
+            // Now retrieve results from Pocket since the modification response doesn't return full bookmark details. 
+            // Try searching only for the last number of bookmarks added 
+            let retrievalResults = await this.retrieve({sort: "newest", count: bookmarkSeeds.length});
+            if(!includesAllNewKeys(retrievalResults)) {
+               // If bookmarks were added between adding/reading and not all new ones were created, check ALL bookmarks
+               retrievalResults = await this.retrieve({});   
+            }
+            if(!includesAllNewKeys(retrievalResults)) {
+               throw new Error("The initial API call succeeded, but not all new bookmarks could be found.");
+            }
+
+            return {
+               results,
+               addedBookmarks: removeNulls(results.successfulIds).map(id => retrievalResults[id])
+            } as AddBookmarkResults;
+         });
    }
 
    remove(keys: BookmarkKeys) {
@@ -450,6 +465,7 @@ export class PocketApi implements BookmarkPersister {
             r.data,
             `Failed to rename tag from ${oldTag} to ${newTag}.`,
          );
+         return { dirtyChange: false } as PersistenceResult;
       });
    }
 
@@ -464,6 +480,7 @@ export class PocketApi implements BookmarkPersister {
                r.data,
                `Failed to delete tag ${tag}.`,
             );
+            return { dirtyChange: false } as PersistenceResult;
          },
       );
    }
@@ -471,5 +488,5 @@ export class PocketApi implements BookmarkPersister {
    /* END POCKET ACTIONS */
 }
 
-const pocketApi = new PocketApi("api/pocket/", "/authenticated");
+const pocketApi = new PocketApi(`${constants.apiUrl}/pocket`, "/authenticated");
 export default pocketApi;

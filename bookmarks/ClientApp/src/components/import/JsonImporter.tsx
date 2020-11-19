@@ -33,7 +33,7 @@ export const JsonImporter: React.FC<JsonImporterProps> = () => {
       try {
          const action = actionCreators.loadSerializedBookmarks(
             value, {
-               type: BookmarkSourceType.json,
+               type: BookmarkSourceType.readonlyJson,
                description: "Parsed from Text",
                bookmarkSetIdentifier: "From Raw Text",
                trusted: SourceTrustLevel.warnedUntrusted

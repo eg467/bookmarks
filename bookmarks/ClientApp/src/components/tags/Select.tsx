@@ -12,13 +12,11 @@ export type SelectProps = CreatableProps<OptionType> & {
 export default function ({ canAdd = true, valueStrings, onChangedStrings, ...rest }: SelectProps) {
     function handleChange(newValue: ValueType<OptionType>) {
         if (typeof onChangedStrings === "undefined") { throw Error("An undefined change handler was called."); }
-
         newValue = newValue || [];
         const isArray = (v: ValueType<OptionType>): v is OptionsType<OptionType> => Array.isArray(v);
 
         if (isArray(newValue)) {
             const items = newValue.map(fromOption);
-
             onChangedStrings(items);
         } else {
             // Single-item selection (not used for now).

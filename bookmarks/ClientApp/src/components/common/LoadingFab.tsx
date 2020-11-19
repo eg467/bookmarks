@@ -1,16 +1,12 @@
-﻿import React, { Fragment, Props, PropsWithChildren, useState } from "react";
-import clsx from "clsx";
+﻿import React from "react";
 import { createStyles, makeStyles, Theme } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import { green, grey } from "@material-ui/core/colors";
-import Button from "@material-ui/core/Button";
-import Fab, { FabProps } from "@material-ui/core/Fab";
+import { green } from "@material-ui/core/colors";
+import { FabProps } from "@material-ui/core/Fab";
 import CheckIcon from "@material-ui/icons/Check";
 import ErrorIcon from "@material-ui/icons/Error";
-import SaveIcon from "@material-ui/icons/Save";
-import { PropTypes, SvgIcon, SvgIconTypeMap } from "@material-ui/core";
-import { OverridableComponent } from "@material-ui/core/OverridableComponent";
 import { RequestStateType } from "../../redux/request-states/reducer";
+import {BookmarkActionFab} from "../bookmark-page/BookmarkActionFab";
 
 type LoadingFabStyleProps = {
     diameter?: number;
@@ -20,28 +16,18 @@ type LoadingFabStyleProps = {
     foregroundColor?: string;
 };
 
-type OwnProps = {
-    state?: RequestStateType,
-} & LoadingFabStyleProps;
-
+type OwnProps = LoadingFabStyleProps & { state?: RequestStateType };
 type LoadingFabProps = OwnProps & FabProps;
-
+    
 const useStyles = makeStyles((theme: Theme) =>
     createStyles({
         root: {
             display: "flex",
             alignItems: "center"
         },
-        wrapper: {
-            margin: theme.spacing(1),
+        container2: {
             position: "relative",
         },
-        fab: ({ diameter, foregroundColor, backgroundColor }: LoadingFabStyleProps) => ({
-            width: diameter,
-            height: diameter,
-            color: foregroundColor,
-            backgroundColor
-        }),
         buttonSuccess: {
             backgroundColor: green[500],
             "&:hover": {
@@ -79,14 +65,10 @@ const LoadingFab = ({
 
 
     return (
-        <div className={classes.wrapper}>
-            <Fab
-                {...rest}
-                className={classes.fab}
-                disabled={state !== RequestStateType.inactive}
-            >
+        <div className={classes.container2}>
+            <BookmarkActionFab {...rest}>
                 {(state === RequestStateType.success) ? <CheckIcon /> : state === RequestStateType.error ? <ErrorIcon /> : children}
-            </Fab>
+            </BookmarkActionFab>
             {state === RequestStateType.pending && (
                 <CircularProgress
                     disableShrink={false}

@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from "react";
-import { connect, useSelector } from "react-redux";
-import { AppState, MyThunkDispatch } from "../../redux/root/reducer";
+import React, { useEffect} from "react";
+import { useSelector } from "react-redux";
+import { AppState} from "../../redux/root/reducer";
 //import { selectPocketAuth } from '../../redux/selectors';
 import {
    actionCreators,
-   actionCreators as authActionCreators,
+   
 } from "../../redux/pocket/auth/actions";
 import { Redirect } from "react-router";
 import {
-   StoreDispatch,
    useStoreDispatch,
 } from "../../redux/store/configureStore";
 import { selectors } from "../../redux/pocket/auth/reducer";

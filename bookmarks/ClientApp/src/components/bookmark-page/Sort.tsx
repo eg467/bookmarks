@@ -45,8 +45,8 @@ export const SortField: React.FC<SortFieldProps> = ({value, onChange}) => {
 
     return (<SelectedButtonGroup
         options={options}
-        defaultValue={value}
-        onChange={onChange}
+        defaultSelection={value}
+        onSelectionChange={onChange}
     />);
 };
 
@@ -62,8 +62,8 @@ export const SortOrder: React.FC<SortOrderProps> = ({value, onChange}) => {
 
     return (<SelectedButtonGroup
         options={options}
-        defaultValue={value}
-        onChange={onChange}
+        defaultSelection={value}
+        onSelectionChange={onChange}
     />);
 };
 

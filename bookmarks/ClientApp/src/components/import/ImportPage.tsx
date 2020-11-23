@@ -1,12 +1,12 @@
-import React, {Fragment, useEffect, useRef, useState} from "react";
+import React, {Fragment, useEffect, useRef} from "react";
 import PocketImporter from "./PocketImporter";
 import {Box, makeStyles, Tab, Tabs, Theme} from "@material-ui/core";
 import {JsonImporter} from "./JsonImporter";
 import {grey} from "@material-ui/core/colors";
-import {useSelector} from "react-redux";
-import {AppState} from "../../redux/root/reducer";
-import {BookmarkSource, BookmarkSourceType} from "../../redux/bookmarks/reducer";
+import {BookmarkSource, BookmarkSourceType, selectors} from "../../redux/bookmarks/reducer";
 import {useHistory} from "react-router";
+import {useStoreSelector} from "../../redux/store/configureStore";
+import { Link } from "react-router-dom";
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -63,12 +63,13 @@ const ImportPage = (): JSX.Element => {
         setTabIdx(newValue);
     };
     const history = useHistory();
-    const currentSource = useSelector((state: AppState) => state.bookmarks.source);
+    const currentSource = useStoreSelector(selectors.selectBookmarkSource);
+    const hasSource = (source: BookmarkSource) => source.type !== BookmarkSourceType.none;
     
     // Used to detect the first change that originated from this component.
     const firstRun = useRef(true);
     useEffect(() => {
-        if(!firstRun.current && currentSource.type !== BookmarkSourceType.none) {
+        if(!firstRun.current && hasSource(currentSource)) {
             history.push("/bookmarks");
         }
         firstRun.current = false;
@@ -76,6 +77,11 @@ const ImportPage = (): JSX.Element => {
     
    return (
         <Fragment>
+           {hasSource(currentSource) &&
+              <p>
+                  <Link to="/bookmarks">View existing bookmarks</Link>
+              </p>
+           } 
             <div className={classes.root} >
                <Tabs
                    orientation="vertical"

@@ -1,7 +1,5 @@
 import * as actions from "./actions";
-import {selectors as rootSelectors} from "../selectors";
-
-import * as pocketActions from "../pocket/bookmarks/actions";
+import {PocketAction,ActionType as pocketActionType} from "../pocket/actions";
 import { createSelector } from "reselect";
 import { SetOps, ciEquals, deduplicate, removeNulls } from "../../utils";
 import {
@@ -17,7 +15,7 @@ import {
 } from "../../api/bookmark-io";
 import pocketApi from "../../api/pocket-api";
 import { AppState } from "../root/reducer";
-import {RequestState, RequestStatesState} from "../request-states/reducer";
+import {RequestStatesState} from "../request-states/reducer";
 import produce from "immer";
 import { createInMemoryBookmarkPersister } from "../../api/createInMemoryBookmarkPersister";
 
@@ -154,7 +152,7 @@ export const standardizeTags = (tags: string[]) =>
 const reducer = produce(
    (
       state: BookmarkState,
-      action: actions.BookmarkAction | pocketActions.PocketBookmarksAction,
+      action: actions.BookmarkAction | PocketAction,
    ) => {
       const transformAffectedBookmarks = (
          results: PartialSuccessResult,
@@ -166,6 +164,18 @@ const reducer = produce(
       }
 
       switch (action.type) {
+         case pocketActionType.FETCH_BOOKMARKS_SUCCESS: {
+            const { bookmarks, source } = action.response;
+            state.bookmarks = bookmarks;
+            state.source = source;
+            break;
+         }
+
+         case pocketActionType.LOGOUT: {
+            state = initialState;
+            break;
+         }
+
          case actions.ActionType.LOAD: {
             const { bookmarks, source } = action;
             state.bookmarks = bookmarks;
@@ -177,7 +187,6 @@ const reducer = produce(
             action.response.addedBookmarks.forEach(b => {
                state.bookmarks[b.id] = b;
             });
-            
             break;
          }
 
@@ -278,6 +287,10 @@ const reducer = produce(
             state.filters.selected = action.selected;
             break;
             
+         case actions.ActionType.CLEAR_FILTERS:
+            state.filters = initialState.filters;
+            break;
+            
          case actions.ActionType.SELECT:
             let {bookmarkIds, selected} = action;
             
@@ -331,8 +344,8 @@ export const selectAllTags = createSelector(
 // TODO: Change the below selectors to point from the root state instead of relative BookmarkState.
 
 // SOURCE
-
 const selectBookmarkSource = (state: AppState) => state.bookmarks.source;
+const selectAreBookmarksLoaded = (state: AppState) => selectBookmarkSource(state).type !== BookmarkSourceType.none;
 
 const selectBookmarkPersister = createSelector(
    [selectBookmarkSource, selectBookmarks],
@@ -560,6 +573,7 @@ const selectSortedBookmarkIds = createSelector(
 
 export const selectors = {
    selectBookmarkSource,
+   selectAreBookmarksLoaded,
    selectBookmarkPersister,
    selectCapabilities,
    selectBookmarks,

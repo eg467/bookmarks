@@ -7,12 +7,12 @@ import { Dispatch } from 'redux';
 import {  selectAllTagOptions  } from '../tags/tag-types';
 import Select, { SelectProps } from '../tags/Select';
 import {
-    Typography,
-    TextField,
-    makeStyles,
-    Theme, createStyles, TextFieldProps
+   Typography,
+   TextField,
+   makeStyles,
+   Theme, createStyles, TextFieldProps, Button, Divider, debounce
 } from "@material-ui/core";
-import {useStoreDispatch} from "../../redux/store/configureStore";
+import {useStoreDispatch, useStoreSelector} from "../../redux/store/configureStore";
 import {actionCreators} from "../../redux/bookmarks/actions";
 import { SelectedButtonGroup } from '../common/SelectedButtonGroup';
 
@@ -47,20 +47,22 @@ export const NotTagFilter = connect(
 )(Select);
 
 export const ContentFilter: React.FC<TextFieldProps> = ({...rest}) => {
-    const searchTerm = useSelector((state: AppState) => state.bookmarks.filters.contentFilter);
+    const searchTerm = useStoreSelector(state => state.bookmarks.filters.contentFilter);
     const dispatch = useStoreDispatch();
     const [value,setValue] = useState(searchTerm);
     
     const filter = (q: string) => dispatch(actionCreators.setContentFilter(q));
+   const debouncedFilter = debounce(filter, 1000);
+
     const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
         const newValue = event.target.value;
+       debouncedFilter(newValue);
         setValue(newValue);
-        filter(newValue);
     }
     return (
         <TextField
             label="Search titles, descriptions, and urls"
-            defaultValue={searchTerm}
+            value={value}
             onChange={handleChange}
             {...rest}
         />
@@ -88,7 +90,7 @@ export const BinaryFilter: React.FC<TernaryFilterProps> = ({value, onChange}) =>
 };
 
 export const ArchiveFilter: React.FC<{}> = () => {
-    const value = useSelector((state: AppState) => state.bookmarks.filters.archived);
+    const value = useStoreSelector(state => state.bookmarks.filters.archived);
     const dispatch = useStoreDispatch();
     return (
         <BinaryFilter
@@ -98,7 +100,7 @@ export const ArchiveFilter: React.FC<{}> = () => {
 };
 
 export const FavoriteFilter: React.FC<{}> = () => {
-    const value = useSelector((state: AppState) => state.bookmarks.filters.favorite);
+    const value = useStoreSelector(state => state.bookmarks.filters.favorite);
     const dispatch = useStoreDispatch();
     return (
         <BinaryFilter
@@ -108,7 +110,7 @@ export const FavoriteFilter: React.FC<{}> = () => {
 };
 
 export const SelectionFilter: React.FC<{}> = () => {
-   const value = useSelector((state: AppState) => state.bookmarks.filters.selected);
+   const value = useStoreSelector(state => state.bookmarks.filters.selected);
    const dispatch = useStoreDispatch();
    return (
       <BinaryFilter
@@ -139,12 +141,19 @@ const useStyles = makeStyles((theme: Theme) =>
 
 export default function () {
     const classes = useStyles();
-    const header = (label: string) => (<Typography variant="h5">{label}</Typography>); 
+   const dispatch = useStoreDispatch();
+   
+   const handleClearFilters = () => {
+      dispatch(actionCreators.clearFilters());
+   }
+
+   const header = (label: string) => (<Typography variant="h5">{label}</Typography>); 
     return (
         <div className={classes.root}>
             {header("Content")}
             <ContentFilter className={classes.fullWidth}  />
 
+            <Divider />
             {header("Tags")}
             <label>
                 <span>Include <b>all</b> of:</span>
@@ -159,6 +168,7 @@ export default function () {
                 <NotTagFilter />
             </label>
 
+           <Divider />
             {header("Status")}
 
            <label>
@@ -181,6 +191,13 @@ export default function () {
                     <FavoriteFilter />
                 </div>
             </label>
+           
+           <Divider />
+           <Button
+              onClick={handleClearFilters}   
+              variant="outlined"
+              color="secondary">Clear Filters</Button>
+           
         </div>
     );
 }

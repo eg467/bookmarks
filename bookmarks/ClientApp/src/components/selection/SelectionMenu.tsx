@@ -18,7 +18,7 @@ import {useSelector} from "react-redux";
 import {AppState} from "../../redux/root/reducer";
 import {SetOps} from "../../utils";
 import {actionCreators} from "../../redux/bookmarks/actions";
-import {useStoreDispatch} from "../../redux/store/configureStore";
+import {useStoreDispatch, useStoreSelector} from "../../redux/store/configureStore";
 import {BookmarkKeys, TagModification} from "../../api/bookmark-io";
 import Select from "../tags/Select";
 import {selectAllTagOptions} from "../tags/tag-types";
@@ -49,7 +49,14 @@ const useStyles = makeStyles((theme: Theme) =>
             margin: theme.spacing(2, .5)
          }
       },
-      
+      spaced: {
+         // display:"flex",
+         // flexDirection: "row",
+         margin: theme.spacing(1),
+         "&>*": {
+            margin: theme.spacing(2)
+         }
+      },
       actionGroup: {
          margin: "1em auto"
       }
@@ -102,10 +109,10 @@ export const SelectionMenu: React.FC<{}> = () => {
   const classes = useStyles();
   
   const dispatch = useStoreDispatch();
-  const allBookmarkIds = useSelector((state: AppState) => selectors.selectBookmarkIds(state));
-  const selectedBookmarkIds =  useSelector((state: AppState) => selectors.selectSelectedBookmarkIds(state));
-  const filteredBookmarkIds = useSelector((state: AppState) => selectors.selectFilteredBookmarkIds(state));
-  const allTagOptions = useSelector((state: AppState) => selectAllTagOptions(state));
+  const allBookmarkIds = useStoreSelector(state => selectors.selectBookmarkIds(state));
+  const selectedBookmarkIds =  useStoreSelector(state => selectors.selectSelectedBookmarkIds(state));
+  const filteredBookmarkIds = useStoreSelector(state => selectors.selectFilteredBookmarkIds(state));
+  const allTagOptions = useStoreSelector(state => selectAllTagOptions(state));
   const [searchFiltered, setSearchFiltered] = useState<Nullable<boolean>>(null);
   const [searchSelected, setSearchSelected] = useState<Nullable<boolean>>(selectedBookmarkIds.size > 0 || null);
   const isFiltered = filteredBookmarkIds.size < allBookmarkIds.size;
@@ -179,8 +186,9 @@ export const SelectionMenu: React.FC<{}> = () => {
 
    return ( 
       <div className={classes.container}>
-         <Typography  variant="h4">Apply To</Typography>
-         <div className={classes.container}>
+         
+         <div className={classes.spaced}>
+            <Typography  variant="h4">Apply To</Typography>
              <div>Filtered ({searchArea.size} / {allBookmarkIds.size})</div>
              <SearchFiltered 
                  value={searchFiltered}
@@ -197,10 +205,10 @@ export const SelectionMenu: React.FC<{}> = () => {
          </div>
 
          <Divider />
-         
-         <Typography  variant="h4">Operations</Typography>
-         <div>
 
+
+         <div className={classes.spaced}>
+            <Typography  variant="h4">Operations</Typography>
             <ButtonGroup className={classes.actionGroup} variant="contained" color="primary" aria-label="contained primary button group">
                <Button onClick={handleSelect(true)} startIcon={<CheckBoxIcon />}>
                   Select
@@ -235,8 +243,8 @@ export const SelectionMenu: React.FC<{}> = () => {
 
          <Divider />
          
-         <Typography  variant="h4">Tags</Typography>
-         <div>
+         <div className={classes.spaced}>
+            <Typography  variant="h4">Tags</Typography>
             <Select
                canAdd={true}
                options={allTagOptions}

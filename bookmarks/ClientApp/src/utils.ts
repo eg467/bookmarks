@@ -1,5 +1,4 @@
 
-export type BinarySetOperation<T> = (a: ReadonlySet<T>, b: ReadonlySet<T>) => Set<T>;
 export class SetOps {
    private static sortSetsBySize<T>(a: ReadonlySet<T>, b: ReadonlySet<T>) {
       return a.size < b.size ? [a,b] : [b,a];
@@ -40,3 +39,13 @@ export const deduplicate = <T>(items: T[]) => [...new Set(items)];
 export const removeNulls = <T>(items: Nullable<T>[]) => {
    return items.filter(x => x !== null) as T[];
 };
+
+export const getHostName = (url: string): Nullable<string> => {
+   try {
+      const a = document.createElement("a");
+      a.href = url;
+      return a.host;
+   } catch(_) {
+      return null;
+   }
+}

@@ -1,6 +1,4 @@
-﻿import {useSelector} from "react-redux";
-import {AppState} from "../../redux/root/reducer";
-import React from "react";
+﻿import React from "react";
 import {
    Button,
    ButtonProps,
@@ -10,57 +8,25 @@ import {
    ListItem,
    ListItemIcon,
    ListItemText,
-   ListSubheader,
-   Typography
+   ListSubheader
 } from "@material-ui/core";
 import AppleIcon from "@material-ui/icons/Apple";
 import AndroidIcon from "@material-ui/icons/Android";
 import ExtensionIcon from '@material-ui/icons/Extension';
-import {useStoreDispatch} from "../../redux/store/configureStore";
-import {actionCreators as authActionCreators} from "../../redux/pocket/auth/actions";
-import {actionCreators as bmActionCreators } from "../../redux/pocket/bookmarks/actions";
+import {useStoreDispatch, useStoreSelector} from "../../redux/store/configureStore";
+import {actionCreators as bmActionCreators } from "../../redux/pocket/actions";
 import { Alert, AlertTitle } from "@material-ui/lab";
 import { BookmarkImporterCard } from "./Importers";
-
-export type PocketAuthButtonProps = ButtonProps & {
-   username: string;
-   loading: boolean;
-}
-export const PocketAuthButton: React.FC<PocketAuthButtonProps> = ({
-   username, 
-   loading,
-   ...rest
-}) => {
-   const dispatch = useStoreDispatch();
-   const login = () => dispatch(authActionCreators.login());
-   const logout = () => dispatch(authActionCreators.logout());
-   
-   if(loading) {
-     return <CircularProgress />; 
-   } else if(username) {
-      return (
-         <Button size="large" variant="contained" color="default" {...rest} onClick={logout}>
-            Logout
-         </Button>
-      ) 
-   } else {
-      return (
-         <Button variant="contained" color="primary" size="large" {...rest} onClick={login}>
-            Login or Create an Account
-         </Button>
-      );
-   }
-}
-
+import PocketAuthButton from "../pocket-auth/PocketAuthButton";
 
 const PocketImporter = (): JSX.Element => {
-   const {username,error,loading} = useSelector((state: AppState) => state.pocket.auth);
+   const {username,awaitingAuthorization,authError} = useStoreSelector(state => state.pocket);
    const dispatch = useStoreDispatch();
    const loadBookmarkHandler = username 
       ? () => dispatch(bmActionCreators.fetchBookmarks())
       : undefined;
 
-   const LoginButton = <PocketAuthButton username={username} loading={loading} />
+   const LoginButton = <PocketAuthButton username={username} loading={awaitingAuthorization} />
    return (
       <BookmarkImporterCard 
          header="Pocket Account"
@@ -71,16 +37,16 @@ const PocketImporter = (): JSX.Element => {
             <Alert severity="success">You are logged in as <b>{username}</b>.</Alert>
          }
 
-         {error &&
+         {authError &&
             <Alert severity="error">
                 <AlertTitle>Authentication Error</AlertTitle>
-               {error}
+               {authError}
             </Alert>
          }
          
-         <Typography variant="body2" color="textSecondary" component="p">
-            <Link href="https://getpocket.com">GetPocket.com</Link> is an online bookmark-saving service.
-         </Typography>
+         <p>
+            <a href="https://getpocket.com">GetPocket.com</a> is an online bookmark-saving service.
+         </p>
          <List
             component="nav"
             aria-labelledby="nested-list-subheader"
@@ -111,7 +77,7 @@ const PocketImporter = (): JSX.Element => {
                   <ExtensionIcon />
                </ListItemIcon>
                <Link target="_blank" href="https://support.mozilla.org/en-US/kb/what-pocket">
-                  <ListItemText primary="Firefox" secondary="Built into firefox by default" />
+                  <ListItemText primary="Firefox" secondary="Built in by default" />
                </Link>
             </ListItem>
             <ListItem>

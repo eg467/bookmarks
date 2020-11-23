@@ -1,16 +1,16 @@
 /** @flow */
-import React, { useRef, useState } from 'react';
-import { AppState, MyThunkDispatch } from '../../redux/root/reducer';
+import React from 'react';
+import { AppState} from '../../redux/root/reducer';
 import { StoreDispatch } from '../../redux/store/configureStore';
 import { connect } from 'react-redux';
-import { Masonry, CellMeasurerCache, WindowScroller, CellMeasurer, MasonryCellProps, AutoSizer, List, ListRowRenderer, Collection, Size } from 'react-virtualized';
+import { Masonry, CellMeasurerCache, WindowScroller, CellMeasurer, MasonryCellProps, AutoSizer, Size } from 'react-virtualized';
 import { CellRenderer, createCellPositioner, Positioner } from 'react-virtualized/dist/es/Masonry';
 import { selectors } from '../../redux/bookmarks/reducer';
+import { selectors as rootSelectors } from "../../redux/root/reducer"
 
 import BookmarkBlock from './BookmarkBlock';
 import { selectors as pocketSelectors } from '../../redux/pocket/reducer';
-import { actionCreators } from '../../redux/pocket/bookmarks/actions';
-import {createStyles, makeStyles, Theme, WithStyles, withStyles} from "@material-ui/core";
+import {createStyles, Theme, WithStyles, withStyles} from "@material-ui/core";
 
 interface BookmarkBlocksState {
     columnWidth: number,
@@ -28,22 +28,22 @@ const styles = (theme: Theme) =>
        }
    });
 
-
-
 const mapStateToProps = (state: AppState) => {
     return {
         bookmarkIds: selectors.selectSortedBookmarkIds(state),
-        loading: pocketSelectors.bookmarks(state),
+        options: rootSelectors.selectOptions(state),
     };
 };
 type StateProps = ReturnType<typeof mapStateToProps>;
 
 const mapDispatchToProps = (dispatch: StoreDispatch) => ({
-    fetchBookmarks: () => dispatch(actionCreators.fetchBookmarks())
 });
 type DispatchProps = ReturnType<typeof mapDispatchToProps>;
 
-export type BookmarkBlocksProps = StateProps & DispatchProps & WithStyles<typeof styles> & {
+export type BookmarkBlocksProps = StateProps 
+   & DispatchProps 
+   & WithStyles<typeof styles> 
+   & {
     columnWidth?: number;
 }
 
@@ -74,12 +74,6 @@ class BookmarkBlocksComponent extends React.PureComponent<BookmarkBlocksProps, B
         this.renderAutoSizer = this.renderAutoSizer.bind(this);
         this.renderMasonry = this.renderMasonry.bind(this);
         this.setMasonryRef = this.setMasonryRef.bind(this);
-    }
-
-    componentDidMount() {
-        if (this.props.bookmarkIds.length === 0) {
-            this.props.fetchBookmarks();
-        }
     }
 
     componentDidUpdate(prevProps: BookmarkBlocksProps, prevState: BookmarkBlocksState) {
@@ -122,11 +116,14 @@ class BookmarkBlocksComponent extends React.PureComponent<BookmarkBlocksProps, B
 
     cellRenderer({ index, key, parent, style }: MasonryCellProps): ReturnType<CellRenderer> {
         const { columnWidth } = this.state;
-        const { bookmarkIds } = this.props;
+        const { bookmarkIds, options } = this.props;
         return (
             <CellMeasurer cache={this.cache} index={index} key={key} parent={parent}>
                 <div style={style}>
-                    <BookmarkBlock width={columnWidth} bookmarkId={bookmarkIds[index]} />
+                    <BookmarkBlock 
+                       options={options}
+                       width={columnWidth} 
+                       bookmarkId={bookmarkIds[index]} />
                 </div>
             </CellMeasurer>
         );
@@ -212,13 +209,6 @@ class BookmarkBlocksComponent extends React.PureComponent<BookmarkBlocksProps, B
 
     // This is a bit of a hack to simulate newly loaded cells
     _resetList = () => {
-        //const ROW_HEIGHTS = [25, 50, 75, 100];
-
-        //const { list } = this.context;
-        //list.forEach(datum => {
-        //    datum.size = ROW_HEIGHTS[Math.floor(Math.random() * ROW_HEIGHTS.length)];
-        //});
-
         this.cache.clearAll();
         this.resetCellPositioner();
         if (this.masonry) {
@@ -243,7 +233,6 @@ class BookmarkBlocksComponent extends React.PureComponent<BookmarkBlocksProps, B
         this.masonry = ref;
     }
 }
-
 
 export const connectedBookmarkPage = connect(mapStateToProps, mapDispatchToProps)(BookmarkBlocksComponent);
 export const styledConnectedBookmarkPage = withStyles(styles)(connectedBookmarkPage);

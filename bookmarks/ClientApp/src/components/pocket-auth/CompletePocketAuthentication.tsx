@@ -5,12 +5,12 @@ import { AppState} from "../../redux/root/reducer";
 import {
    actionCreators,
    
-} from "../../redux/pocket/auth/actions";
+} from "../../redux/pocket/actions";
 import { Redirect } from "react-router";
 import {
-   useStoreDispatch,
+   useStoreDispatch, useStoreSelector,
 } from "../../redux/store/configureStore";
-import { selectors } from "../../redux/pocket/auth/reducer";
+import { selectors } from "../../redux/pocket/reducer";
 import { Alert } from "@material-ui/lab";
 
 export type CompleteAuthenticationProps = {};
@@ -19,9 +19,9 @@ const CompletePocketAuthentication = ({}: CompleteAuthenticationProps): JSX.Elem
    console.log("CompletePocketAuthentication");
    
     
-   const { error } = useSelector((state: AppState) => state.pocket.auth);
+   const { authError } = useStoreSelector(state => state.pocket);
 
-   const isAuthenticated = useSelector((state: AppState) =>
+   const isAuthenticated = useStoreSelector(state =>
       selectors.isAuthenticated(state),
    );
 
@@ -32,10 +32,10 @@ const CompletePocketAuthentication = ({}: CompleteAuthenticationProps): JSX.Elem
    }, []);
 
    if (!isAuthenticated) {
-      return error ? (
+      return authError ? (
          <div>
             Your Pocket authentication failed.
-            <Alert severity="error">{error}</Alert>
+            <Alert severity="error">{authError}</Alert>
          </div>
       ) : (
          <div>Accepting Authentication</div>

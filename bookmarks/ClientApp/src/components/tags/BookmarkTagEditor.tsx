@@ -2,42 +2,38 @@
    Button,
    Chip,
    CircularProgress,
-   Container,
    createStyles,
-   Grow,
    IconButton,
    makeStyles,
    Popover,
    Theme,
+   Modal,
+   Typography,
+   TextField,
 } from "@material-ui/core";
-import React, { useEffect, useState, useRef, Fragment } from "react";
+import React, {Fragment, useEffect, useRef, useState} from "react";
 import Select from "./Select";
-import { OptionType, selectAllTagOptions } from "./tag-types";
+import {selectAllTagOptions} from "./tag-types";
 import EditIcon from "@material-ui/icons/Edit";
 import SaveIcon from "@material-ui/icons/Save";
-import { connect, DispatchProp } from "react-redux";
-import { AppState } from "../../redux/root/reducer";
-import { StoreDispatch } from "../../redux/store/configureStore";
-import {
-   selectors as bmSelectors,
-   standardizeTags,
-} from "../../redux/bookmarks/reducer";
+import {connect} from "react-redux";
+import {AppState} from "../../redux/root/reducer";
+import {StoreDispatch, useStoreDispatch} from "../../redux/store/configureStore";
+import {BookmarkDisplayElements, selectors as optionSelectors} from "../../redux/options/reducer";
+import {selectors as bmSelectors, standardizeTags,} from "../../redux/bookmarks/reducer";
 import {
    readRequestState,
    RequestStateType,
    RequestType,
    selectors as reqSelectors,
 } from "../../redux/request-states/reducer";
-import { actionCreators } from "../../redux/bookmarks/actions";
-import { TagModification } from "../../api/bookmark-io";
-import { Alert } from "reactstrap";
-import Typography from "@material-ui/core/Typography";
-import { Edit } from "@material-ui/icons";
+import {actionCreators} from "../../redux/bookmarks/actions";
+import {BookmarkSeed, TagModification, toArray} from "../../api/bookmark-io";
+import {Alert} from "reactstrap";
 
 export type OwnProps = {
    bookmarkId: string;
    isEditing?: boolean;
-   values: string[];
 };
 
 export type BookmarkTagEditorProps = OwnProps & DispatchProps & StateProps;
@@ -50,25 +46,41 @@ const useStyles = makeStyles((theme: Theme) =>
       button: {
          margin: theme.spacing(1),
       },
+      tagDropdown: {
+      },
+      tag: {
+         fontWeight: "bold",
+         margin: theme.spacing(.2),
+         padding: ".5em .25em"
+      },
+      modal: {
+         position: "absolute",
+            width: 400,
+            backgroundColor: theme.palette.background.paper,
+            border: "2px solid #000",
+            boxShadow: theme.shadows[5],
+            padding: theme.spacing(2, 4, 3),
+      }
    }),
 );
 
 const BookmarkTagEditor: React.FC<BookmarkTagEditorProps> = ({
    isEditing = false,
-   values,
-   canEdit,
+   bookmark,
+   readonly,
    availableTags,
    requestState,
    removeTag,
    setTags,
 }) => {
-   const [editing, setEditing] = useState<boolean>(canEdit && isEditing);
-   const [currentValues, setCurrentValues] = useState<string[]>(values);
+   const {tags,excerpt,title,url} = bookmark;
+   const [editing, setEditing] = useState<boolean>(readonly && isEditing);
+   const [currentValues, setCurrentValues] = useState<string[]>(tags);
    const popoverParent = useRef<HTMLDivElement | null>(null);
 
-   useEffect(() => {
-      setCurrentValues(values);
-   }, [values]);
+    useEffect(() => {
+       setCurrentValues(tags);
+    }, [tags]);
 
    const classes = useStyles();
 
@@ -84,20 +96,21 @@ const BookmarkTagEditor: React.FC<BookmarkTagEditorProps> = ({
    }
 
    const makeRemoveTagHandler = (t: string) =>
-      !editing && canEdit ? () => removeTag(t) : undefined;
+      (!editing && !readonly) ? () => removeTag(t) : undefined;
 
    function display(): JSX.Element {
-      const tagChips = values.map((t) => (
+      const tagChips = tags.map((t) => (
          <Chip
             size="small"
-            style={{ fontWeight: "bold", margin: "3px 2px" }}
+            variant="outlined"
+            className={classes.tag}
             key={t}
             label={t}
             onDelete={makeRemoveTagHandler(t)}
          />
       ));
 
-      if (canEdit) {
+      if (!readonly) {
          const editTagsButton = (
             <label
                key="<edit tag button>"
@@ -123,7 +136,10 @@ const BookmarkTagEditor: React.FC<BookmarkTagEditorProps> = ({
 
    function editor(): JSX.Element {
       return (
-         <Fragment>
+         <div className={classes.modal}>
+            <Typography variant="h4">{title}</Typography>
+            <Typography variant="h5">{url}</Typography>
+            <Typography variant="body1">{excerpt}</Typography>
             <Select
                onChangedStrings={setCurrentValues}
                canAdd={true}
@@ -156,7 +172,7 @@ const BookmarkTagEditor: React.FC<BookmarkTagEditorProps> = ({
                   Cancel
                </Button>
             </div>
-         </Fragment>
+         </div>
       );
    }
 
@@ -165,30 +181,12 @@ const BookmarkTagEditor: React.FC<BookmarkTagEditorProps> = ({
          return null;
       }
       return (
-         <Popover
+         <Modal
             open={editing}
-            anchorEl={popoverParent.current}
             onClose={(): void => setEditing(false)}
-            anchorOrigin={{
-               vertical: "bottom",
-               horizontal: "center",
-            }}
-            transformOrigin={{
-               vertical: "top",
-               horizontal: "center",
-            }}
          >
             {editor()}
-            <br />
-            <br />
-            <br />
-            <br />
-            <br />
-            <br />
-            <br />
-            <br />
-            TEST
-         </Popover>
+         </Modal>
       );
    }
 
@@ -224,8 +222,10 @@ type DispatchProps = ReturnType<typeof mapDispatchToProps>;
 console.log(reqSelectors.selectRequestStatesForBookmark);
 
 const mapStateToProps = (state: AppState, ownProps: OwnProps) => ({
+   bookmark: bmSelectors.selectBookmark(state, ownProps.bookmarkId),
    availableTags: selectAllTagOptions(state),
-   canEdit: bmSelectors.selectCapabilities(state)("modifyTags"),
+   readonly: !bmSelectors.selectCapabilities(state)("modifyTags") 
+      || !optionSelectors.selectDisplayElementQuery(state)(BookmarkDisplayElements.edit),
    requestState: readRequestState(
       reqSelectors.selectRequestStatesForBookmark(state, ownProps),
       RequestType.modifyTags,
@@ -234,3 +234,5 @@ const mapStateToProps = (state: AppState, ownProps: OwnProps) => ({
 type StateProps = ReturnType<typeof mapStateToProps>;
 
 export default connect(mapStateToProps, mapDispatchToProps)(BookmarkTagEditor);
+
+

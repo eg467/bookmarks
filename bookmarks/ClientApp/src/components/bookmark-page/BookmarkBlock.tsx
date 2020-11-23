@@ -1,7 +1,6 @@
-import React, {useEffect, useState} from "react";
-import { connect } from "react-redux";
-import { StoreDispatch } from "../../redux/store/configureStore";
-import { AppState } from "../../redux/root/reducer";
+import React from "react";
+import {StoreDispatch} from "../../redux/store/configureStore";
+import {AppState} from "../../redux/root/reducer";
 import {CapabilityQuery, selectBookmark, selectors} from "../../redux/bookmarks/reducer";
 import {
    CreateSelectRequestStateType,
@@ -12,26 +11,30 @@ import {
 import Card from "@material-ui/core/Card";
 import CardMedia from "@material-ui/core/CardMedia";
 import CardHeader from "@material-ui/core/CardHeader";
-import { FaviconImg } from "../images/favicon-img";
+import Favicon from "../images/Favicon";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
 import CardActions from "@material-ui/core/CardActions";
 import FavoriteIcon from "@material-ui/icons/Favorite";
 import DeleteIcon from "@material-ui/icons/Delete";
 import ArchiveIcon from "@material-ui/icons/Archive";
-import { proxyImageSrc } from "../images/proxied-img";
-import {actionCreators, BookmarkToggleActionPayload} from "../../redux/bookmarks/actions";
-import { TagModification } from "../../api/bookmark-io";
+import {proxyImageSrc} from "../images/proxied-img";
+import {actionCreators} from "../../redux/bookmarks/actions";
+import {TagModification} from "../../api/bookmark-io";
 import LoadingFab from "../common/LoadingFab";
 
-import { red, common } from "@material-ui/core/colors";
+import {blue, common, grey, red, yellow} from "@material-ui/core/colors";
 import BookmarkTagEditor from "../tags/BookmarkTagEditor";
-import {Checkbox, createStyles, makeStyles, FormControlLabel} from "@material-ui/core";
+import {Checkbox, createStyles, FormControlLabel, makeStyles} from "@material-ui/core";
 import VirusTotalButton from "../common/VirusTotalButton";
 import {BookmarkData} from "../../redux/bookmarks/bookmarks";
-import {CheckBox} from "@material-ui/icons";
 import {Theme} from "@material-ui/core/styles";
-
+import {getHostName} from "../../utils";
+import {BookmarkDisplayElements, OptionsState, selectors as optionSelectors} from "../../redux/options/reducer";
+import {BookmarkLink} from "./BookmarkLink";
+import { connect } from "react-redux";
+import SelectBookmark from "./SelectBookmark";
+import { BookmarkActions } from "./BookmarkActionFab";
 
 
 interface OwnProps {
@@ -42,12 +45,6 @@ interface OwnProps {
 }
 
 const mapDispatchToProps = (dispatch: StoreDispatch, ownProps: OwnProps) => ({
-   archive: (status: boolean): Promise<void> =>
-      dispatch(actionCreators.archive({ keys: ownProps.bookmarkId, status })),
-   remove: (): Promise<void> =>
-      dispatch(actionCreators.remove(ownProps.bookmarkId)),
-   favorite: (status: boolean): Promise<void> =>
-      dispatch(actionCreators.favorite({ keys: ownProps.bookmarkId, status })),
    removeTag: (tag: string): Promise<void> =>
       dispatch(
          actionCreators.modifyTags({
@@ -71,11 +68,9 @@ const mapDispatchToProps = (dispatch: StoreDispatch, ownProps: OwnProps) => ({
             operation: TagModification.set,
             tags,
          }),
-      ),
-   select: (selected: boolean): void => {
-      dispatch(actionCreators.select(selected, ownProps.bookmarkId))
-   },
+      )
 });
+
 type DispatchProps = ReturnType<typeof mapDispatchToProps>;
 
 // Manually specify these because of the factory.
@@ -83,7 +78,7 @@ type StateProps = {
    bookmark: BookmarkData;
    canDo: CapabilityQuery;
    requestStates: CreateSelectRequestStateType;
-   selected: boolean;
+   shouldShow: (element: BookmarkDisplayElements) => boolean;
 };
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function createMapStateToProps() {
@@ -92,7 +87,7 @@ function createMapStateToProps() {
       bookmark: selectBookmark(state, ownProps.bookmarkId),
       canDo: selectors.selectCapabilities(state),
       requestStates: createRequestState(state, ownProps),
-      selected: selectors.selectBookmarkSelection(state, ownProps.bookmarkId)
+      shouldShow: optionSelectors.selectDisplayElementQuery(state)
    });
 }
 
@@ -115,154 +110,61 @@ const useStyles = makeStyles((theme: Theme) =>
    }),
 );
 
-export type BookmarkBlockProps = DispatchProps & StateProps & OwnProps & {};
+export type BookmarkBlockProps = DispatchProps & StateProps & OwnProps & {
+   options: OptionsState
+};
 const BookmarkBlock: React.FC<BookmarkBlockProps> = (props) => {
    const {
-      archive: setArchived,
-      remove,
-      favorite: setFavorite,
       bookmark,
       canDo,
-      onLoad,
       bookmarkId,
       width,
       requestStates,
-      select,
-      selected
+      shouldShow
    } = props;
-    const { image, tags, title, url, excerpt, archive, favorite } = bookmark;
+   const { image, tags, title, url, excerpt, archive, favorite } = bookmark;
    const classes = useStyles();
-  
-   const getReqStatus = (reqType: RequestType): RequestStateType =>
-      requestStates.reqStatus(reqType).state;
-   const proxiedImage = image
-      ? proxyImageSrc(image, width ? { w: width } : {})
-      : undefined;
-
-   function getHostName(url: string): string | null {
-      if (!url) {
-         return null;
-      }
-      const a = document.createElement("a");
-      a.href = url;
-      return a.host;
-   }
-
-   function handleLoad(): void {
-      if (onLoad) {
-         onLoad();
-      }
-   }
-
-   function handleError(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
-      (e.target as HTMLDivElement).style.display = "none";
-      handleLoad();
-   }
-   
-   const [test, setTest] = useState(false);
-
-   useEffect(() => {
-      // call loaded if the main image wasn't set
-      if (!image) {
-         handleLoad();
-      }
-   }, [image, onLoad, handleLoad]);
-
-   const domain = getHostName(url);
-   const showFavicon = false;
-   const showMainImage = false;
-   const FavoriteButton = (): JSX.Element => (
-      <LoadingFab
-         state={getReqStatus(RequestType.favorite)}
-         aria-label={favorite ? "Unfavorite bookmark" : "Favorite bookmark"}
-         onClick={() => {
-            console.log("favorite", favorite)
-            setFavorite(!favorite);
-         }}
-         foregroundColor={favorite ? red[800] : common.black}
-      >
-         <FavoriteIcon />
-      </LoadingFab>
-   );
-
-   const ArchiveButton = (): JSX.Element => (
-      <LoadingFab
-         state={getReqStatus(RequestType.archive)}
-         aria-label={archive ? "Unarchive bookmark" : "Archive bookmark"}
-         onClick={() => setArchived(!archive)}
-      >
-         <ArchiveIcon />
-      </LoadingFab>
-   );
-
-   const DeleteButton = (): JSX.Element => (
-      <LoadingFab
-         state={getReqStatus(RequestType.remove)}
-         aria-label="Remove bookmark"
-         onClick={(): void => {
-            if (window.confirm("Are you sure?")) {
-               // noinspection JSIgnoredPromiseFromCall
-               remove();
-            }
-         }}
-      >
-         <DeleteIcon />
-      </LoadingFab>
-   );
-
-   const handleSelection = (event: React.ChangeEvent<HTMLInputElement>) => 
-      select(event.target.checked);
+   const proxiedImage = image ? proxyImageSrc(image, width ? { w: width } : {}) : undefined;
 
    return (
       <Card>
          <CardHeader
             avatar={
-               showFavicon && (
-                  <FaviconImg
-                     url={url}
-                     source="duckduckgo"
+               shouldShow(BookmarkDisplayElements.favicon) && (
+                  <Favicon
+                     faviconUrl={url}
+                     proxySource="duckduckgo"
                      alt=""
                      width={24}
                      height={24}
                   />
                )
             }
-            title={title}
-            subheader={domain}
+            title={<BookmarkLink bookmarkId={bookmarkId} />}
+            subheader={getHostName(url)}
          />
     
-         {(showMainImage && proxiedImage && (
-            <CardMedia
-               onLoad={handleLoad}
-               onError={handleError}
-               image={proxiedImage}
-               className={`${classes.media}`}
-            />
-         )) ||
-            null}
-
+         {shouldShow(BookmarkDisplayElements.image) && proxiedImage && (
+            <CardMedia image={proxiedImage} className={`${classes.media}`} />
+         )}
     
          <CardContent className={classes.contents}>
-            <FormControlLabel
-               control={<Checkbox checked={selected} onChange={handleSelection} />}
-               label="Selected"
-            />
+            <SelectBookmark bookmarkId={bookmarkId} />
 
-            {excerpt && (
+            {shouldShow(BookmarkDisplayElements.description) && (
                <Typography variant="body2" color="textSecondary" component="p">
                   {excerpt}
                </Typography>
             )}
 
-            <div>
-               <BookmarkTagEditor values={tags} bookmarkId={bookmarkId} />
-            </div>
+            {shouldShow(BookmarkDisplayElements.tags) && (
+               <div>
+                  <BookmarkTagEditor bookmarkId={bookmarkId} />
+               </div>
+            )}
          </CardContent>
          <CardActions className={classes.buttonContainer}>
-            <VirusTotalButton url={url} />
-            {canDo("favorite") && FavoriteButton()}
-            {canDo("archive") && ArchiveButton()}
-            {canDo("remove") && DeleteButton()}
+            <BookmarkActions bookmarkId={bookmarkId} />
          </CardActions>
       </Card>
    );

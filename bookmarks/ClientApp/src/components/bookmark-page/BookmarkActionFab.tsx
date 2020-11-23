@@ -1,11 +1,20 @@
 ﻿import Fab, {FabProps} from "@material-ui/core/Fab";
 import {createStyles, makeStyles, Theme} from "@material-ui/core/styles";
-import {RequestStateType} from "../../redux/request-states/reducer";
+import {RequestStateType, RequestType, selectors as reqSelectors, readRequestState, RequestState} from "../../redux/request-states/reducer";
+import {selectors as bmSelectors} from "../../redux/bookmarks/reducer";
 import CheckIcon from "@material-ui/icons/Check";
 import ErrorIcon from "@material-ui/icons/Error";
-import React from "react";
+import React, { Fragment } from "react";
 import {colors} from "@material-ui/core";
-import {blue} from "@material-ui/core/colors";
+import {blue, common, grey, red} from "@material-ui/core/colors";
+import LoadingFab from "../common/LoadingFab";
+import FavoriteIcon from "@material-ui/icons/Favorite";
+import ArchiveIcon from "@material-ui/icons/Archive";
+import DeleteIcon from "@material-ui/icons/Delete";
+import {useStoreDispatch, useStoreSelector} from "../../redux/store/configureStore";
+import {actionCreators, RemoveBookmarkSuccessAction} from "../../redux/bookmarks/actions";
+import VirusTotalButton from "../common/VirusTotalButton";
+import CardActions from "@material-ui/core/CardActions";
 
 export type BookmarkActionFabStyleProps = {
     diameter?: number;
@@ -28,7 +37,7 @@ export const useBookmarkActionFabStyles = makeStyles((theme: Theme) =>
 
 export const BookmarkActionFab: React.FC<BookmarkActionFabProps> = (props) => {
     const {
-        diameter = 40,
+        diameter = 36,
         backgroundColor = colors.common.white,
         foregroundColor = blue[500],
         children,
@@ -36,4 +45,78 @@ export const BookmarkActionFab: React.FC<BookmarkActionFabProps> = (props) => {
     } = props;
     const classes = useBookmarkActionFabStyles({diameter,foregroundColor,backgroundColor});
     return <Fab {...rest} className={classes.fab}>{children}</Fab>;
+};
+
+export const BookmarkActions: React.FC<{bookmarkId: string}> = ({bookmarkId}) => {
+    //requestStates: createRequestState(state, ownProps),
+    
+    const dispatch = useStoreDispatch();
+
+   const {id, archive, url, favorite} = useStoreSelector(state => bmSelectors.selectBookmark(state, bookmarkId));
+   const canDo = useStoreSelector(bmSelectors.selectCapabilities);
+    const requestStates = useStoreSelector(
+       state => reqSelectors.selectRequestStatesForBookmark(state, {bookmarkId}));
+    const getReqState = (reqType: RequestType): RequestState => 
+       readRequestState(requestStates, reqType);
+
+   const getReqStatus = (reqType: RequestType): RequestStateType => getReqState(reqType).state;
+
+   const setArchived = (status: boolean): Promise<void> =>
+      dispatch(actionCreators.archive({ keys: bookmarkId, status }));
+   
+   const remove = (): Promise<RemoveBookmarkSuccessAction> => 
+      dispatch(actionCreators.remove(bookmarkId));
+
+   const setFavorite = (status: boolean): Promise<void> =>
+      dispatch(actionCreators.favorite({ keys: bookmarkId, status }));
+      
+    const FavoriteButton = (): JSX.Element => (
+       <LoadingFab
+          state={getReqStatus(RequestType.favorite)}
+          aria-label={favorite ? "Unfavorite bookmark" : "Favorite bookmark"}
+          onClick={() => setFavorite(!favorite)}
+          foregroundColor={favorite ? red[800] : common.black}
+       >
+           <FavoriteIcon />
+       </LoadingFab>
+    );
+
+    const ArchiveButton = (): JSX.Element => (
+       <LoadingFab
+          state={getReqStatus(RequestType.archive)}
+          aria-label={archive ? "Unarchive bookmark" : "Archive bookmark"}
+          onClick={() => setArchived(!archive)}
+          foregroundColor={archive ? blue[600] : grey[600]}
+       >
+           <ArchiveIcon />
+       </LoadingFab>
+    );
+
+    const DeleteButton = (): JSX.Element => (
+       <LoadingFab
+          state={getReqStatus(RequestType.remove)}
+          aria-label="Remove bookmark"
+          onClick={(): void => {
+              if (window.confirm("Are you sure?")) {
+                  // noinspection JSIgnoredPromiseFromCall
+                  remove();
+              }
+          }}
+          foregroundColor={common.white}
+          backgroundColor={red[800]}
+       >
+           <DeleteIcon />
+       </LoadingFab>
+    );
+    
+    
+    return (
+       <Fragment>
+          <VirusTotalButton url={url} />
+          {canDo("favorite") && FavoriteButton()}
+          {canDo("archive") && ArchiveButton()}
+          {canDo("remove") && DeleteButton()}
+       </Fragment>
+    );
+
 };

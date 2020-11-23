@@ -15,9 +15,9 @@ export const VirusTotalButton: React.FC<{url: string}> = ({url}) => {
     // TODO: Use an actual link to avoid this bloat just to add some <a> properties.
     // This is for styling consistency with other buttons
     const handleClick = async () => {
-        const apiUrl = `${constants.apiUrl}/virustotal/url?url=${queryString.stringify({url})}`;
+        const apiUrl = `${constants.apiUrl}/virustotal/url?${queryString.stringify({url})}`;
         console.log(`Fetching: ${apiUrl}`);
-        
+         
         fetch(apiUrl, { method: "GET" })
            .then((res) => {
               console.log("TV link api response", res);
@@ -25,9 +25,7 @@ export const VirusTotalButton: React.FC<{url: string}> = ({url}) => {
               if(status < 200 || status >= 300) {
                  throw Error(`Failure code (${status} returned from API.`);
               }
-              const returnedLink = res.text();
-              console.log(`Redirecting to: ${returnedLink}`);
-              return returnedLink;
+              return res.text();
            }) 
            .then(
               (link) => {

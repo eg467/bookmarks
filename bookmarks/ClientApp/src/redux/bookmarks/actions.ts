@@ -59,7 +59,7 @@ export enum ActionType {
     FILTER_ARCHIVE = "bookmarks/FILTER_ARCHIVE",
     FILTER_FAVORITE = "bookmarks/FILTER_FAVORITE",
     FILTER_SELECTED = "bookmarks/FILTER_SELECTED",
-    
+    CLEAR_FILTERS = "bookmarks/CLEAR_FILTERS",
     SELECT = "bookmarks/SELECT",
 }
 
@@ -267,6 +267,10 @@ export interface SetFilterSelectedAction {
     selected?: boolean;
 }
 
+export interface ClearFiltersAction {
+    type: ActionType.CLEAR_FILTERS;
+}
+
 export interface SelectAction {
     type: ActionType.SELECT;
     bookmarkIds?: BookmarkKeys,
@@ -285,8 +289,7 @@ export type BookmarkAction =
     | SortBookmarksAction
     | SetFilterAndTagsAction | SetFilterOrTagsAction | SetFilterNotTagsAction | SetContentFilterAction 
     | SetFilterArchiveAction | SetFilterFavoriteAction | SetFilterSelectedAction
-    | SelectAction
-    | NullAction;
+    | ClearFiltersAction | SelectAction;
 
 // END ACTIONS
 
@@ -355,34 +358,31 @@ export const actionCreators = {
     }),
     
     get add() {
-        return (bookmarks: BookmarkSeed[]): MyThunkResult<Promise<void>> => {
-            return async (dispatch: StoreDispatch, getState): Promise<void> => {
+        return (bookmarks: BookmarkSeed[]): MyThunkResult<Promise<AddBookmarkSuccessAction>> => {
+            return (dispatch: StoreDispatch, getState): Promise<AddBookmarkSuccessAction> => {
                 const persister = getPersister(getState);
 
-                await dispatch(
+                return dispatch(
                     createPromiseAction({
                         startType: ActionType.ADD,
                         successType: ActionType.ADD_SUCCESS,
                         failureType: ActionType.ADD_FAILURE,
-                        promise: () =>
-                            persister && persister.add
-                                ? persister.add(bookmarks)
-                                : Promise.reject(Error("Unsupported bookmark operation.")),
+                        promise: () =>  
+                            persister.add 
+                               ? persister.add(bookmarks)
+                               : Promise.reject(Error("Unsupported bookmark operation.")),
                         payload: { bookmarks } as AddBookmarkActionPayload,
                     }),
-                ).catch((e) => {
-                    // TODO: Add user error notifications in UI & Redux state.
-                    console.error(e);
-                });
+                );
             };
         };
     },
 
-    remove: (keys: BookmarkKeys): MyThunkResult<Promise<void>> => {
-        return async (dispatch: StoreDispatch, getState): Promise<void> => {
+    remove: (keys: BookmarkKeys): MyThunkResult<Promise<RemoveBookmarkSuccessAction>> => {
+        return (dispatch: StoreDispatch, getState): Promise<RemoveBookmarkSuccessAction> => {
             const persister = getPersister(getState);
 
-            await dispatch(
+            return dispatch(
                 createPromiseAction({
                     startType: ActionType.REMOVE,
                     successType: ActionType.REMOVE_SUCCESS,
@@ -497,6 +497,8 @@ export const actionCreators = {
             );
         };
     },
+    
+    clearFilters: () => ({type:ActionType.CLEAR_FILTERS}) as ClearFiltersAction
 };
 
 // END ACTION CREATORS

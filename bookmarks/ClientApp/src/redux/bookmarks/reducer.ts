@@ -1,7 +1,7 @@
 import * as actions from "./actions";
 import {PocketAction,ActionType as pocketActionType} from "../pocket/actions";
 import { createSelector } from "reselect";
-import { SetOps, ciEquals, deduplicate, removeNulls } from "../../utils";
+import {SetOps, ciEquals, deduplicate, removeNulls, ciCollator, getHostName} from "../../utils";
 import {
    BookmarkSortField,
    BookmarkCollection,
@@ -542,18 +542,15 @@ type BookmarkComparer = (a: BookmarkData, b: BookmarkData) => number;
 const selectSortedBookmarkIds = createSelector(
    [selectBookmarks, selectFilteredBookmarkIds, selectSort],
    (bookmarks, filteredKeys, sort) => {
-      const orderFactor = sort.ascending ? 1 : -1;
-      const cmp = <T>(a: T, b: T): number =>
-         orderFactor * (a < b ? -1 : a > b ? 1 : 0);
-
-      const regex = RegExp(/^(?:https?|ftp):\/\/www\d*\./i).compile();
-
-      const domain = (url: string) => url.replace(regex, "");
+      const order = (comparison: number) => sort.ascending ? comparison : -comparison;
+      const cmp = <T>(a: T, b: T): number => order(a < b ? -1 : a > b ? 1 : 0);
+      const ciCompare = (a: string, b: string): number => order(ciCollator.compare(a,b)); 
+        
       const comparisonsByField: {
          [field in BookmarkSortField]: BookmarkComparer;
       } = {
-         [BookmarkSortField.url]: (a, b) => cmp(domain(a.url), domain(b.url)),
-         [BookmarkSortField.title]: (a, b) => cmp(a.title, b.title),
+         [BookmarkSortField.url]: (a, b) => ciCompare(getHostName(a.url) || "", getHostName(b.url) || ""),
+         [BookmarkSortField.title]: (a, b) => ciCompare(a.title, b.title),
          [BookmarkSortField.date]: (a, b) => cmp(a.time_added, b.time_added),
       };
 

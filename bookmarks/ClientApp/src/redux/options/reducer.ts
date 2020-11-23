@@ -11,9 +11,10 @@ export enum BookmarkDisplayElements {
    image = 1 << 1,
    favicon = 1 << 2,
    description = 1 << 3,
-   tags = 1 << 4,
-   edit = 1 << 5,
-   all = ~(~0 << 6),
+   tags= 1 << 4 ,
+   domain = 1 << 5,
+   edit = 1 << 6,
+   all = ~(~0 << 7),
 }
 
 export type BookmarkLayout  = "masonry" | "list";
@@ -62,3 +63,4 @@ export const selectors = {
 };
 
 // END COMBINED SELECTORS
+

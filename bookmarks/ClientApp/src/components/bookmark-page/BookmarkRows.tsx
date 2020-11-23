@@ -54,19 +54,15 @@ export const BookmarkRow: React.FC<BookmarkRowsProps> = ({
             </td>
          }
 
-         {shouldShow(BookmarkDisplayElements.tags) &&
          <td>
              <BookmarkLink bookmarkId={id}/>
          </td>
-         }
          
          {shouldShow(BookmarkDisplayElements.tags) && (
             <td>
                <BookmarkTagEditor bookmarkId={bookmarkId} />
             </td>
          )}
-
-      
 
          {shouldShow(BookmarkDisplayElements.edit) && 
             <td className={classes.actionContainer}>

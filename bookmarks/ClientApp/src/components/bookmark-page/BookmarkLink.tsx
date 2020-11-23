@@ -16,6 +16,7 @@ import {BookmarkDisplayElements, selectors as optionsSelectors} from "../../redu
 import { selectors } from "../../redux/bookmarks/reducer";
 import {AppState} from "../../redux/root/reducer";
 import {useStoreSelector} from "../../redux/store/configureStore";
+import {Title} from "@material-ui/icons";
 
 
 export type BookmarkLinkProps = LinkProps & {
@@ -24,6 +25,26 @@ export type BookmarkLinkProps = LinkProps & {
 
 const useStyles = makeStyles((theme: Theme) =>
    createStyles({
+      modal: {
+         backgroundColor: theme.palette.background.paper, 
+         margin: "auto",
+         width: "min(50vw, 600px)",
+         padding: theme.spacing(4),
+      },
+      modalWarning: {
+         margin: theme.spacing(2), 
+      },
+      modalContent: {
+         display: "flex",
+         flexDirection: "column",
+         alignItems: "center",
+         textAlign: "center",
+         
+         //textAlign: "center",
+         "&>*": {
+            margin: theme.spacing(3),
+         }
+      },
       link: {
          
       }
@@ -90,49 +111,56 @@ export const UntrustedBookmarkLink: React.FC<LinkProps> = ({
       e: React.MouseEvent<HTMLAnchorElement> | React.MouseEvent<HTMLSpanElement>
    ) => {
       setShowModel(true);
+      e.preventDefault();
       return false;
-   };
+   }; 
 
+   const classes = useStyles();
    const handleClose = () => setShowModel(false);
 
    return (
-      <Fragment>
+      <div>
 
          <Modal
             open={showModal}
             onClose={handleClose}
+            
             aria-labelledby="link-warn-title"
             aria-describedby="link-warn-description"
          >
-            <Fragment>
-               <Alert severity="warning">
+            <div className={classes.modal}>
+               <Alert className={classes.modalWarning} severity="warning">
                   <AlertTitle id="link-warn-title">Warning</AlertTitle>
                   <Typography id="link-warn-description" component="p" variant="subtitle1">
                      This link comes from an untrusted data source and may be unsafe.
                   </Typography>
                </Alert>
 
-               <Typography variant="body1" component="p">
-                  Click this link if you trust it:
-               </Typography>
-               <TrustedBookmarkLink {...rest} onClick={handleClose}>
-                  {rest.href}
-               </TrustedBookmarkLink>
-               <div>
-                  <Button 
-                     size="medium" 
-                     color="secondary" 
-                     onClick={handleClose}
-                  >
-                     Click here to cancel
-                  </Button>
+               <div className={classes.modalContent}>
+                  <p>
+                     <Typography variant="body1">
+                        Click this link if you trust it:
+                     </Typography>
+                     <TrustedBookmarkLink {...rest} onClick={handleClose}>
+                        {rest.href}
+                     </TrustedBookmarkLink>
+                  </p>
+                  <div>
+                     <Button 
+                        size="medium" 
+                        color="secondary" 
+                        onClick={handleClose}
+                     >
+                        Click here to cancel
+                     </Button>
+                  </div>
                </div>
-            </Fragment>
+            </div>
          </Modal>
          
          <TrustedBookmarkLink {...rest} onClick={handleClick} >
             {children}
          </TrustedBookmarkLink>
-      </Fragment>
+      </div>
    );
 };

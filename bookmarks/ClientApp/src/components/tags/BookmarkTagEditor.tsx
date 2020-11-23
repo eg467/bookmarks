@@ -48,18 +48,24 @@ const useStyles = makeStyles((theme: Theme) =>
       },
       tagDropdown: {
       },
+      tagContainer: {
+         display: "flex",
+         alignItems: "center",
+         
+      },
       tag: {
          fontWeight: "bold",
-         margin: theme.spacing(.2),
-         padding: ".5em .25em"
+         margin: theme.spacing(.1, .2),
+         height: "1rem",
+         fontSize: ".6rem",
       },
       modal: {
-         position: "absolute",
-            width: 400,
-            backgroundColor: theme.palette.background.paper,
-            border: "2px solid #000",
-            boxShadow: theme.shadows[5],
-            padding: theme.spacing(2, 4, 3),
+         margin: "20vh auto",
+         width: "75vw",
+         backgroundColor: theme.palette.background.paper,
+         border: "2px solid #000",
+         boxShadow: theme.shadows[5],
+         padding: theme.spacing(2, 4, 3),
       }
    }),
 );
@@ -102,7 +108,7 @@ const BookmarkTagEditor: React.FC<BookmarkTagEditorProps> = ({
       const tagChips = tags.map((t) => (
          <Chip
             size="small"
-            variant="outlined"
+            variant="default"
             className={classes.tag}
             key={t}
             label={t}
@@ -191,7 +197,7 @@ const BookmarkTagEditor: React.FC<BookmarkTagEditorProps> = ({
    }
 
    return (
-      <div>
+      <div className={classes.tagContainer}>
          <div ref={popoverParent}>{display()}</div>
          {editingPopper()}
          {error && <Alert severity="error">{error}</Alert>}

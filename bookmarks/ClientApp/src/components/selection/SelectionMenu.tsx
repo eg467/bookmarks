@@ -37,10 +37,6 @@ import AddIcon from '@material-ui/icons/Add';
 import RemoveIcon from '@material-ui/icons/Remove';
 import SyncIcon from '@material-ui/icons/Sync';
 
-
-
-
-
 const useStyles = makeStyles((theme: Theme) =>
    createStyles({
       container: {

@@ -39,6 +39,7 @@ import {BookmarkDisplayElements, selectors as optionSelectors} from "../../redux
 import {green, common} from "@material-ui/core/colors";
 import {actionCreators} from "../../redux/options/actions";
 import AddBookmarkForm from "./AddBookmarkForm";
+import {BookmarkGrid} from "./BookmarkGrid";
 
 export type DrawerContents = {
    component: React.ReactNode;
@@ -131,7 +132,7 @@ export const BookmarkLayout: React.FC<{}> = () => {
    const options = useStoreSelector(state => state.options);
    switch (options.layout) {
       case "list":
-         return <BookmarkRows/>;
+         return <BookmarkGrid/>;
       default:
          return <BookmarkBlocks/>;
    }

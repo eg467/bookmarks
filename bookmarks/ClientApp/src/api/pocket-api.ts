@@ -225,7 +225,13 @@ export class PocketApi implements BookmarkPersister {
    retrieve(params: RetrieveParameters) {
       params = Object.assign({ detailType: "complete" }, params);
       return this.authenticatedCall("get", params)
-         .then((results) => results.data.list)
+         .then((results) => {
+            if(!results || !results.data) {
+               console.warn("retrieve response empty", results);
+               throw Error("Invalid response from Pocket. Please try again");
+            }
+            return results.data.list;
+         })
          .then((b) => PocketApi.toBookmarks(b));
    }
 

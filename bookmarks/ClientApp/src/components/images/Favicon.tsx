@@ -1,5 +1,7 @@
 import React from 'react';
 import {getHostName} from "../../utils";
+import {useStoreSelector} from "../../redux/store/configureStore";
+import { selectors } from '../../redux/bookmarks/reducer';
 
 export type FaviconImgProps = React.DetailedHTMLProps<React.ImgHTMLAttributes<HTMLImageElement>, HTMLImageElement> & {
     faviconUrl: string;
@@ -56,5 +58,16 @@ export const BookmarkFavicon: React.FC<FaviconImgProps> = React.memo(
         />
     );
 });
+
+export type BookmarkFaviconByIdProps = Omit<FaviconImgProps, "faviconUrl"> & {
+   bookmarkId: string
+};
+export const BookmarkFaviconById: React.FC<BookmarkFaviconByIdProps> = React.memo(
+   ({bookmarkId, ...rest}) => {
+      console.log("BookmarkFaviconById: " + bookmarkId);
+       const url = useStoreSelector(s => selectors.selectBookmark(s, bookmarkId).url);
+       return <BookmarkFavicon faviconUrl={url} {...rest} />; 
+   });
+
 
 export default React.memo(Favicon);

@@ -1,3 +1,4 @@
+import {BookmarkCollection, BookmarkData} from "./redux/bookmarks/bookmarks";
 
 export class SetOps {
    private static sortSetsBySize<T>(a: ReadonlySet<T>, b: ReadonlySet<T>) {
@@ -48,4 +49,73 @@ export const getHostName = (url: string): Nullable<string> => {
    } catch(_) {
       return null;
    }
+}
+
+let currentBookmarkIndex = 0;
+const idToString = (id: number) => String(id).padStart(4, "0");
+export const newId = (collection?: BookmarkCollection|BookmarkData[]): string => {
+   const hasId = !collection
+      ? (id: string) => false
+      : Array.isArray(collection)
+         ? (id: string) => collection.some(x => x.id === id)
+         : (id: string) => !!collection[id];
+   
+   let newValue: string;
+   while(hasId(newValue = idToString(currentBookmarkIndex++))) {}
+   return newValue;
+}
+
+
+
+export const htmlDecoder = () => {
+   const txt = document.createElement("textarea");
+   return (html: string) => {
+      txt.innerHTML = html;
+      return txt.value;
+   };
+};
+
+// https://stackoverflow.com/a/27385169, safe for XSS
+export const decodeHtml = (html: string) => {
+   const doc = new DOMParser().parseFromString(html, "text/html");
+   return doc.documentElement.textContent || "";
+};
+
+export const htmlEncoder = () => {
+   const txt = document.createElement("textarea");
+   return (text: string) => {
+      txt.appendChild(document.createTextNode(text));
+      const html = txt.innerHTML;
+      txt.innerHTML = "";
+      return html;
+   };
+};
+//
+// export const escapeHtml = (text: string) => {
+//    let txt = document.createElement("textarea");
+//    txt.appendChild(document.createTextNode(text));
+//    return txt.innerHTML;
+// };
+
+export function downloadFile(filename: string, contents: string) {
+   const element = document.createElement("a");
+
+   const mimeTypes: any = {
+      csv: "text/csv",
+      html: "text/html",
+      json: "application/json",
+      txt: "text/plain"
+   };
+   const extension = filename.split(".").pop() || "txt";
+   const mimeType = mimeTypes[extension];
+
+   element.setAttribute(
+      "href",
+      `data:${mimeType};charset=utf-8,${encodeURIComponent(contents)}`
+   );
+   element.setAttribute("download", filename);
+   element.style.display = "none";
+   document.body.appendChild(element);
+   element.click();
+   document.body.removeChild(element);
 }

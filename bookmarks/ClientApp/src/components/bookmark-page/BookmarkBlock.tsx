@@ -19,7 +19,7 @@ import FavoriteIcon from "@material-ui/icons/Favorite";
 import DeleteIcon from "@material-ui/icons/Delete";
 import ArchiveIcon from "@material-ui/icons/Archive";
 import {proxyImageSrc} from "../images/proxied-img";
-import {actionCreators} from "../../redux/bookmarks/actions";
+import {actionCreators, ModifyTagsSuccessAction} from "../../redux/bookmarks/actions";
 import {TagModification} from "../../api/bookmark-io";
 import LoadingFab from "../common/LoadingFab";
 
@@ -35,6 +35,7 @@ import {BookmarkLink} from "./BookmarkLink";
 import { connect } from "react-redux";
 import SelectBookmark from "./SelectBookmark";
 import { BookmarkActions } from "./BookmarkActionFab";
+import {DomainLabel} from "./DomainLabel";
 
 
 interface OwnProps {
@@ -45,7 +46,7 @@ interface OwnProps {
 }
 
 const mapDispatchToProps = (dispatch: StoreDispatch, ownProps: OwnProps) => ({
-   removeTag: (tag: string): Promise<void> =>
+   removeTag: (tag: string): Promise<ModifyTagsSuccessAction> =>
       dispatch(
          actionCreators.modifyTags({
             keys: ownProps.bookmarkId,
@@ -53,7 +54,7 @@ const mapDispatchToProps = (dispatch: StoreDispatch, ownProps: OwnProps) => ({
             tags: tag,
          }),
       ),
-   addTag: (tag: string): Promise<void> =>
+   addTag: (tag: string): Promise<ModifyTagsSuccessAction> =>
       dispatch(
          actionCreators.modifyTags({
             keys: ownProps.bookmarkId,
@@ -61,7 +62,7 @@ const mapDispatchToProps = (dispatch: StoreDispatch, ownProps: OwnProps) => ({
             tags: tag,
          }),
       ),
-   setTags: (tags: string): Promise<void> =>
+   setTags: (tags: string): Promise<ModifyTagsSuccessAction> =>
       dispatch(
          actionCreators.modifyTags({
             keys: ownProps.bookmarkId,
@@ -122,7 +123,7 @@ const BookmarkBlock: React.FC<BookmarkBlockProps> = (props) => {
       requestStates,
       shouldShow
    } = props;
-   const { image, tags, title, url, excerpt, archive, favorite } = bookmark;
+   const { image, url, excerpt } = bookmark;
    const classes = useStyles();
    const proxiedImage = image ? proxyImageSrc(image, width ? { w: width } : {}) : undefined;
 
@@ -141,7 +142,7 @@ const BookmarkBlock: React.FC<BookmarkBlockProps> = (props) => {
                )
             }
             title={<BookmarkLink bookmarkId={bookmarkId} />}
-            subheader={getHostName(url)}
+            subheader={<DomainLabel url={url}/>}
          />
     
          {shouldShow(BookmarkDisplayElements.image) && proxiedImage && (

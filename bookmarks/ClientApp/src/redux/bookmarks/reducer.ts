@@ -17,7 +17,7 @@ import pocketApi from "../../api/pocket-api";
 import { AppState } from "../root/reducer";
 import {RequestStatesState} from "../request-states/reducer";
 import produce from "immer";
-import { createInMemoryBookmarkPersister } from "../../api/createInMemoryBookmarkPersister";
+import {InMemoryBookmarkPersister} from "../../api/InMemoryBookmarkPersister";
 
 export enum BookmarkSourceType {
    /**
@@ -41,25 +41,45 @@ export enum BookmarkSourceType {
     */
    externalJson,
    /*
-    * Json loaded from a user's bookmarks
+    * Json loaded from a user's bookmarks.
     */
    browserBookmarks,
+   /*
+    * Stored using browser local storage API.
+    */
+   local,
 }
 
 export enum SourceTrustLevel {
-   trusted, untrusted, warnedUntrusted
+   trusted, untrusted, ignoredUntrusted
 }
 
-export interface BookmarkSource {
+export type BookmarkSource = {
    type: BookmarkSourceType;
    description: string;
    bookmarkSetIdentifier?: string;
    trusted: SourceTrustLevel;
 }
 
-// TODO: Split these reducers.
-export interface BookmarkState {
+export const createBookmarkSource = (
+   type: BookmarkSourceType, 
+   trusted?: boolean,
+   description?: string,
+   bookmarkSetIdentifier?: string
+): BookmarkSource => ({
+   type,
+   trusted: trusted ? SourceTrustLevel.trusted : SourceTrustLevel.untrusted,
+   description: description || BookmarkSourceType[type],
+   bookmarkSetIdentifier 
+});
+
+export type SourcedBookmarks = {
    bookmarks: BookmarkCollection;
+   source: BookmarkSource;
+};
+
+// TODO: Split these reducers.
+export type BookmarkState = SourcedBookmarks & {
    sort: {
       field: BookmarkSortField;
       ascending: boolean;
@@ -83,7 +103,6 @@ export interface BookmarkState {
       /** Matching bookmarks must be: true: selected, false: unselected, undefined: either. */
       selected?: boolean;
    };
-   source: BookmarkSource;
    requestStates: RequestStatesState;
 }
 
@@ -111,8 +130,7 @@ export const initialState: BookmarkState = {
    },
 };
 
-
-const ciTagIndex = (q: string, tags: string[]) =>
+export const ciTagIndex = (q: string, tags: string[]) =>
    tags.findIndex((t) => ciEquals(t, q));
 
 export interface PersistenceResult {
@@ -122,32 +140,38 @@ export interface PersistenceResult {
    dirtyChange: boolean;
 }
 
-export interface FailedIndividualRequest {
+export type FailedIndividualRequest = {
    id?: string;
    error: string;
 }
 
-export interface PartialSuccessResult extends PersistenceResult {
+export type PartialSuccessResult = PersistenceResult & {
    successfulIds: Nullable<string>[];
    failureIds: Nullable<FailedIndividualRequest>[];
 }
 
-export const createDirtyPartialSuccessResultPromise  = (
-   keys: BookmarkKeys
-) => {
-   const result = createDirtyPartialSuccessResult(keys);
-   return Promise.resolve(result);
-};
-
-export const createDirtyPartialSuccessResult = (
-   keys: BookmarkKeys,
-): PartialSuccessResult => {
-   return { dirtyChange: true, successfulIds: toArray(keys), failureIds: [] };
-};
-
+export const createPartialSuccessResult = (dirtyChange: boolean): PartialSuccessResult => ({
+   dirtyChange,
+   failureIds: [],
+   successfulIds: []
+});
 
 export const standardizeTags = (tags: string[]) =>
-   deduplicate(tags.map((t) => t.toLocaleLowerCase().replace(/,+/g, "_")));
+   deduplicate(
+      tags.map(
+         t => t.toLocaleLowerCase()
+            .replace(/[^\s-_a-z0-9]+/gi, "_"))
+            .filter(x => x)
+   );
+
+export const standardizeTag = (tag: string) => {
+   const tags = standardizeTags([tag]);
+   if(!tags.length) {
+      throw Error("Invalid tag specified.")
+   }
+   return tags[0];
+}
+   
 
 const reducer = produce(
    (
@@ -158,7 +182,10 @@ const reducer = produce(
          results: PartialSuccessResult,
          transform: (bm: BookmarkData, id: string) => void,
       ) => {
-         removeNulls(results.successfulIds).forEach((id) =>
+         removeNulls(results.successfulIds)
+            .filter(id => !!state.bookmarks[id])
+            .forEach((id) =>
+               
             transform(state.bookmarks[id], id),
          );
       }
@@ -177,7 +204,7 @@ const reducer = produce(
          }
 
          case actions.ActionType.LOAD: {
-            const { bookmarks, source } = action;
+            const { bookmarks, source } = action.sourcedBookmarks;
             state.bookmarks = bookmarks;
             state.source = source;
             break;
@@ -349,13 +376,13 @@ const selectAreBookmarksLoaded = (state: AppState) => selectBookmarkSource(state
 
 const selectBookmarkPersister = createSelector(
    [selectBookmarkSource, selectBookmarks],
-   (src, currentBookmarks) => {
+   (src, currentBookmarks): BookmarkPersister => {
       switch (src.type) {
          case BookmarkSourceType.pocket:
-            return pocketApi as BookmarkPersister;
+            return pocketApi;
 
          default:
-            return createInMemoryBookmarkPersister(currentBookmarks);
+            return new InMemoryBookmarkPersister(currentBookmarks);
       }
    },
 );

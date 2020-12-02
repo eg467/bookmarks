@@ -1,5 +1,5 @@
 ﻿import * as React from 'react';
-import {useRef} from 'react';
+import {useRef, Fragment} from 'react';
 import clsx from "clsx";
 import {AutoSizer, Grid, GridCellRenderer, WindowScroller} from "react-virtualized";
 import {useStoreSelector} from "../../redux/store/configureStore";
@@ -14,6 +14,7 @@ import {createStyles, makeStyles} from "@material-ui/core";
 import {Theme} from "@material-ui/core/styles";
 import {grey} from "@material-ui/core/colors";
 import BookmarkDescription from "./BookmarkDescription";
+import {DomainLabel} from "./DomainLabel";
 
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -109,22 +110,24 @@ export const BookmarkGrid: React.FC<BookmarkGridProps> = ({
          show: shouldShow(BookmarkDisplayElements.favicon)
       },
       {
-         width: 400,
-         render: (id: string) => <BookmarkLink bookmarkId={id}/>,
+         width: 300,
+         render: (id: string) => (
+            <BookmarkLink bookmarkId={id}/>
+         ),
          show: true
       },
       {
-         width: 400,
+         width: 300,
          render: (id: string) => <BookmarkDescription bookmarkId={id} />,
-         show: false && shouldShow(BookmarkDisplayElements.description)
+         show: shouldShow(BookmarkDisplayElements.description)
       },
       {
-         width: 400,
+         width: 300,
          render: (id: string) => <BookmarkTagEditor bookmarkId={id} />,
          show: shouldShow(BookmarkDisplayElements.tags)
       },
       {
-         width: 400,
+         width: 300,
          render: (id: string) => (
             <div className={classes.actionContainer}>
                <BookmarkActions bookmarkId={id}/>

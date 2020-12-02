@@ -2,8 +2,6 @@
 import {createStyles, makeStyles, Theme} from "@material-ui/core/styles";
 import {RequestStateType, RequestType, selectors as reqSelectors, readRequestState, RequestState} from "../../redux/request-states/reducer";
 import {selectors as bmSelectors} from "../../redux/bookmarks/reducer";
-import CheckIcon from "@material-ui/icons/Check";
-import ErrorIcon from "@material-ui/icons/Error";
 import React, { Fragment } from "react";
 import {colors} from "@material-ui/core";
 import {blue, common, grey, red} from "@material-ui/core/colors";
@@ -12,9 +10,13 @@ import FavoriteIcon from "@material-ui/icons/Favorite";
 import ArchiveIcon from "@material-ui/icons/Archive";
 import DeleteIcon from "@material-ui/icons/Delete";
 import {useStoreDispatch, useStoreSelector} from "../../redux/store/configureStore";
-import {actionCreators, RemoveBookmarkSuccessAction} from "../../redux/bookmarks/actions";
+import {
+   actionCreators,
+   ArchiveBookmarkSuccessAction,
+   FavoriteBookmarkSuccessAction,
+   RemoveBookmarkSuccessAction
+} from "../../redux/bookmarks/actions";
 import VirusTotalButton from "../common/VirusTotalButton";
-import CardActions from "@material-ui/core/CardActions";
 
 export type BookmarkActionFabStyleProps = {
     diameter?: number;
@@ -24,7 +26,7 @@ export type BookmarkActionFabStyleProps = {
 
 export type BookmarkActionFabProps = FabProps & BookmarkActionFabStyleProps;
 
-export const useBookmarkActionFabStyles = makeStyles((theme: Theme) =>
+export const useBookmarkActionFabStyles = makeStyles((_: Theme) =>
     createStyles({
         fab: ({ diameter, foregroundColor, backgroundColor }: BookmarkActionFabStyleProps) => ({
             width: diameter,
@@ -52,7 +54,7 @@ export const BookmarkActions: React.FC<{bookmarkId: string}> = ({bookmarkId}) =>
     
     const dispatch = useStoreDispatch();
 
-   const {id, archive, url, favorite} = useStoreSelector(state => bmSelectors.selectBookmark(state, bookmarkId));
+   const {archive, url, favorite} = useStoreSelector(state => bmSelectors.selectBookmark(state, bookmarkId));
    const canDo = useStoreSelector(bmSelectors.selectCapabilities);
     const requestStates = useStoreSelector(
        state => reqSelectors.selectRequestStatesForBookmark(state, {bookmarkId}));
@@ -61,13 +63,13 @@ export const BookmarkActions: React.FC<{bookmarkId: string}> = ({bookmarkId}) =>
 
    const getReqStatus = (reqType: RequestType): RequestStateType => getReqState(reqType).state;
 
-   const setArchived = (status: boolean): Promise<void> =>
+   const setArchived = (status: boolean): Promise<ArchiveBookmarkSuccessAction> =>
       dispatch(actionCreators.archive({ keys: bookmarkId, status }));
    
    const remove = (): Promise<RemoveBookmarkSuccessAction> => 
       dispatch(actionCreators.remove(bookmarkId));
 
-   const setFavorite = (status: boolean): Promise<void> =>
+   const setFavorite = (status: boolean): Promise<FavoriteBookmarkSuccessAction> =>
       dispatch(actionCreators.favorite({ keys: bookmarkId, status }));
       
     const FavoriteButton = (): JSX.Element => (

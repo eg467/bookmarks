@@ -1,22 +1,32 @@
 import {
-    BookmarkSeed,
-    BookmarkKeys,
-    BookmarkPersister,
-    TagModification, AddBookmarkResults,
+   AddBookmarkResults,
+   BookmarkKeys,
+   BookmarkPersister,
+   BookmarkSeed,
+   TagModification,
 } from "../../api/bookmark-io";
-import { NullAction } from "../common/actions";
 import {
-    createPromiseAction,
-    PromiseClearingAction,
-    PromiseFailureAction,
-    PromiseSuccessAction,
-    StartPromiseAction,
+   createPromiseAction,
+   PromiseClearingAction,
+   PromiseFailureAction,
+   PromiseSuccessAction,
+   StartPromiseAction,
 } from "../middleware/promise-middleware";
-import { AppState, MyThunkResult } from "../root/reducer";
-import { StoreDispatch } from "../store/configureStore";
-import { BookmarkCollection, BookmarkSortField } from "./bookmarks";
-import { BookmarkSource, PartialSuccessResult, selectors } from "./reducer";
-import { BookmarkImporter } from "../../api/BookmarkImporter";
+import {AppState, MyThunkResult} from "../root/reducer";
+import {StoreDispatch} from "../store/configureStore";
+import {BookmarkCollection, BookmarkSortField} from "./bookmarks";
+import {
+   BookmarkSource,
+   BookmarkSourceType,
+   createBookmarkSource,
+   PartialSuccessResult,
+   PersistenceResult,
+   selectors,
+   SourcedBookmarks
+} from "./reducer";
+import {BookmarkImporter} from "../../api/BookmarkImporter";
+import pocketApi from "../../api/pocket-api";
+import {LocalStoragePersister} from "../../api/LocalStoragePersister";
 
 export enum ActionType {
     LOAD = "bookmarks/LOAD",
@@ -67,8 +77,7 @@ export enum ActionType {
 
 export interface LoadBookmarksAction {
     type: ActionType.LOAD;
-    bookmarks: BookmarkCollection;
-    source: BookmarkSource;
+    sourcedBookmarks: SourcedBookmarks;
 }
 
 export type AddBookmarkActionPayload = {
@@ -185,13 +194,14 @@ export type RenameTagActionPayload = {
     oldTag: string;
     newTag: string;
 };
+export type RenameTagActionResult = PersistenceResult;
 export type RenameTagAction = StartPromiseAction<
     ActionType.RENAME_TAG,
     RenameTagActionPayload
     >;
 export type RenameTagSuccessAction = PromiseSuccessAction<
     ActionType.RENAME_TAG_SUCCESS,
-    void,
+    RenameTagActionResult,
     RenameTagActionPayload
     >;
 export type RenameTagFailureAction = PromiseFailureAction<
@@ -207,13 +217,14 @@ export type RenameTagClearAction = PromiseClearingAction<
 export type DeleteTagActionPayload = {
     tag: string;
 };
+export type DeleteTagActionResult = PersistenceResult;
 export type DeleteTagAction = StartPromiseAction<
     ActionType.DELETE_TAG,
     DeleteTagActionPayload
     >;
 export type DeleteTagSuccessAction = PromiseSuccessAction<
     ActionType.DELETE_TAG_SUCCESS,
-    void,
+    DeleteTagActionResult,
     DeleteTagActionPayload
     >;
 export type DeleteTagFailureAction = PromiseFailureAction<
@@ -295,32 +306,38 @@ export type BookmarkAction =
 
 // ACTION CREATORS
 
-const getPersister = (getState: () => AppState): BookmarkPersister =>
-    selectors.selectBookmarkPersister(getState());
+function persistedAction<T extends BookmarkAction>(
+   fn: (
+      dispatch: StoreDispatch, 
+      getState: () => AppState,
+      persister: BookmarkPersister
+   ) => Promise<T>
+): MyThunkResult<Promise<T>> {
+    return (dispatch: StoreDispatch, getState: () => AppState) => {
+        const persister = selectors.selectBookmarkPersister(getState());
+        let action = fn(dispatch, getState, persister);
+        
+        if(persister.postUpdateSync) {
+            action = action.then(async r => {
+                const newState = getState();
+                const newBookmarks = selectors.selectBookmarks(newState);
+               if (persister.postUpdateSync) {
+                  await persister.postUpdateSync(newBookmarks);
+               }
+                return r;
+            }); 
+        }
+        return action;
+    };
+}
 
 export const actionCreators = {
     loadBookmarks: (
-        bookmarks: BookmarkCollection,
-        source: BookmarkSource,
+       sourcedBookmarks: SourcedBookmarks
     ): LoadBookmarksAction => ({
-        type: ActionType.LOAD,
-        bookmarks,
-        source,
+         type: ActionType.LOAD,
+         sourcedBookmarks
     }),
-    
-    loadSerializedBookmarks: (
-        serializedBookmarks: string,
-        source: BookmarkSource,
-    ): LoadBookmarksAction => {
-        const importer = new BookmarkImporter();
-        importer.addJson(serializedBookmarks);
-
-        return {
-            type: ActionType.LOAD,
-            bookmarks: importer.collection,
-            source,
-        };
-    },
 
     sortBookmarks: (
         field: BookmarkSortField,
@@ -359,146 +376,167 @@ export const actionCreators = {
     
     get add() {
         return (bookmarks: BookmarkSeed[]): MyThunkResult<Promise<AddBookmarkSuccessAction>> => {
-            return (dispatch: StoreDispatch, getState): Promise<AddBookmarkSuccessAction> => {
-                const persister = getPersister(getState);
-
-                return dispatch(
-                    createPromiseAction({
-                        startType: ActionType.ADD,
-                        successType: ActionType.ADD_SUCCESS,
-                        failureType: ActionType.ADD_FAILURE,
-                        promise: () =>  
-                            persister.add 
-                               ? persister.add(bookmarks)
-                               : Promise.reject(Error("Unsupported bookmark operation.")),
-                        payload: { bookmarks } as AddBookmarkActionPayload,
-                    }),
-                );
-            };
+            return persistedAction((dispatch, getState, persister) =>
+                dispatch(
+                   createPromiseAction({
+                       startType: ActionType.ADD,
+                       successType: ActionType.ADD_SUCCESS,
+                       failureType: ActionType.ADD_FAILURE,
+                       promise: () =>
+                          persister.add
+                             ? persister.add(bookmarks)
+                             : Promise.reject(Error("Unsupported bookmark operation.")),
+                       payload: { bookmarks } as AddBookmarkActionPayload,
+                   }),
+                )
+            );
         };
     },
 
     remove: (keys: BookmarkKeys): MyThunkResult<Promise<RemoveBookmarkSuccessAction>> => {
-        return (dispatch: StoreDispatch, getState): Promise<RemoveBookmarkSuccessAction> => {
-            const persister = getPersister(getState);
-
-            return dispatch(
-                createPromiseAction({
-                    startType: ActionType.REMOVE,
-                    successType: ActionType.REMOVE_SUCCESS,
-                    failureType: ActionType.REMOVE_FAILURE,
-                    promise: () =>
-                        persister.remove
-                            ? persister.remove(keys)
-                            : Promise.reject(Error("Unsupported bookmark operation.")),
-                    payload: { keys } as KeyedBookmarkActionPayload,
-                }),
-            );
-        };
+        return persistedAction((dispatch, getState, persister) =>
+           dispatch(
+              createPromiseAction({
+                  startType: ActionType.REMOVE,
+                  successType: ActionType.REMOVE_SUCCESS,
+                  failureType: ActionType.REMOVE_FAILURE,
+                  promise: () =>
+                     persister.remove
+                        ? persister.remove(keys)
+                        : Promise.reject(Error("Unsupported bookmark operation.")),
+                  payload: { keys } as KeyedBookmarkActionPayload,
+              }),
+           )
+        );
     },
 
     archive: (
        input: BookmarkToggleActionPayload,
-    ): MyThunkResult<Promise<void>> => {
-        return async (dispatch: StoreDispatch, getState): Promise<void> => {
-            const persister = getPersister(getState);
-            const { keys, status } = input;
-            await dispatch(
-                createPromiseAction({
-                    startType: ActionType.ARCHIVE,
-                    successType: ActionType.ARCHIVE_SUCCESS,
-                    failureType: ActionType.ARCHIVE_FAILURE,
-                    promise: () =>
-                        persister.archive
-                            ? persister.archive(keys, status)
-                            : Promise.reject(Error("Unsupported bookmark operation.")),
-                    payload: input,
-                }),
-            );
-        };
+    ): MyThunkResult<Promise<ArchiveBookmarkSuccessAction>> => {
+        const { keys, status } = input;
+        return persistedAction((dispatch, getState, persister) =>
+           dispatch(
+              createPromiseAction({
+                  startType: ActionType.ARCHIVE,
+                  successType: ActionType.ARCHIVE_SUCCESS,
+                  failureType: ActionType.ARCHIVE_FAILURE,
+                  promise: () =>
+                     persister.archive
+                        ? persister.archive(keys, status)
+                        : Promise.reject(Error("Unsupported bookmark operation.")),
+                  payload: input,
+              }),
+           )
+        );
     },
 
     favorite: (
         input: BookmarkToggleActionPayload,
-    ): MyThunkResult<Promise<void>> => {
-        return async (dispatch: StoreDispatch, getState): Promise<void> => {
-            const persister = getPersister(getState);
-            const { keys, status } = input;
-            await dispatch(
-                createPromiseAction({
-                    startType: ActionType.FAVORITE,
-                    successType: ActionType.FAVORITE_SUCCESS,
-                    failureType: ActionType.FAVORITE_FAILURE,
-                    promise: () =>
-                        persister.favorite
-                            ? persister.favorite(keys, status)
-                            : Promise.reject(Error("Unsupported bookmark operation.")),
-                    payload: input,
-                }),
-            );
-        };
+    ): MyThunkResult<Promise<FavoriteBookmarkSuccessAction>> => {
+        const { keys, status } = input;
+        return persistedAction((dispatch, getState, persister) =>
+           dispatch(
+              createPromiseAction({
+                  startType: ActionType.FAVORITE,
+                  successType: ActionType.FAVORITE_SUCCESS,
+                  failureType: ActionType.FAVORITE_FAILURE,
+                  promise: () =>
+                     persister.favorite
+                        ? persister.favorite(keys, status)
+                        : Promise.reject(Error("Unsupported bookmark operation.")),
+                  payload: input,
+              }),
+           )
+        );
     },
 
     modifyTags: (
         input: ModifyTagsActionPayload,
-    ): MyThunkResult<Promise<void>> => {
-        return async (dispatch: StoreDispatch, getState): Promise<void> => {
-            const persister = getPersister(getState);
-            const { keys, tags, operation } = input;
-            await dispatch(
-                createPromiseAction({
-                    startType: ActionType.MODIFY_TAGS,
-                    successType: ActionType.MODIFY_TAGS_SUCCESS,
-                    failureType: ActionType.MODIFY_TAGS_FAILURE,
-                    promise: () =>
-                        persister.modifyTags
-                            ? persister.modifyTags(keys, tags, operation)
-                            : Promise.reject(Error("Unsupported bookmark operation.")),
-                    payload: input,
-                }),
-            );
-        };
+    ): MyThunkResult<Promise<ModifyTagsSuccessAction>> => {
+        const { keys, tags, operation } = input;
+        return persistedAction((dispatch, getState, persister) =>
+           dispatch(
+              createPromiseAction({
+                  startType: ActionType.MODIFY_TAGS,
+                  successType: ActionType.MODIFY_TAGS_SUCCESS,
+                  failureType: ActionType.MODIFY_TAGS_FAILURE,
+                  promise: () =>
+                     persister.modifyTags
+                        ? persister.modifyTags(keys, tags, operation)
+                        : Promise.reject(Error("Unsupported bookmark operation.")),
+                  payload: input,
+              }),
+           )
+        );
     },
 
-    renameTag: (input: RenameTagActionPayload): MyThunkResult<Promise<void>> => {
-        return async (dispatch: StoreDispatch, getState): Promise<void> => {
-            const persister = getPersister(getState);
-            const { newTag, oldTag } = input;
-            await dispatch(
-                createPromiseAction({
-                    startType: ActionType.RENAME_TAG,
-                    successType: ActionType.RENAME_TAG_SUCCESS,
-                    failureType: ActionType.RENAME_TAG_FAILURE,
-                    promise: () =>
-                        persister.renameTag
-                            ? persister.renameTag(oldTag, newTag)
-                            : Promise.reject(Error("Unsupported bookmark operation.")),
-                    payload: input,
-                }),
-            );
-        };
+    renameTag: (input: RenameTagActionPayload): MyThunkResult<Promise<RenameTagSuccessAction>> => {
+        const { newTag, oldTag } = input;
+        return persistedAction((dispatch, getState, persister) =>
+           dispatch(
+              createPromiseAction({
+                  startType: ActionType.RENAME_TAG,
+                  successType: ActionType.RENAME_TAG_SUCCESS,
+                  failureType: ActionType.RENAME_TAG_FAILURE,
+                  promise: () =>
+                     persister.renameTag
+                        ? persister.renameTag(oldTag, newTag)
+                        : Promise.reject(Error("Unsupported bookmark operation.")),
+                  payload: input,
+              })
+           )
+        );
     },
 
-    deleteTag: (input: DeleteTagActionPayload): MyThunkResult<Promise<void>> => {
-        return async (dispatch: StoreDispatch, getState): Promise<void> => {
-            const persister = getPersister(getState);
-            const { tag } = input;
-            await dispatch(
-                createPromiseAction({
-                    startType: ActionType.DELETE_TAG,
-                    successType: ActionType.DELETE_TAG_SUCCESS,
-                    failureType: ActionType.DELETE_TAG_FAILURE,
-                    promise: () =>
-                        persister.deleteTag
-                            ? persister.deleteTag(tag)
-                            : Promise.reject(Error("Unsupported bookmark operation.")),
-                    payload: input,
-                }),
-            );
-        };
+    deleteTag: (input: DeleteTagActionPayload): MyThunkResult<Promise<DeleteTagSuccessAction>> => {
+        const { tag } = input;
+        return persistedAction((dispatch, getState, persister) =>
+           dispatch(
+              createPromiseAction({
+                  startType: ActionType.DELETE_TAG,
+                  successType: ActionType.DELETE_TAG_SUCCESS,
+                  failureType: ActionType.DELETE_TAG_FAILURE,
+                  promise: () =>
+                     persister.deleteTag
+                        ? persister.deleteTag(tag)
+                        : Promise.reject(Error("Unsupported bookmark operation.")),
+                  payload: input,
+              }),
+           )
+        );
     },
     
-    clearFilters: () => ({type:ActionType.CLEAR_FILTERS}) as ClearFiltersAction
+    clearFilters: () => ({type:ActionType.CLEAR_FILTERS}) as ClearFiltersAction,
+
+   importFromPocket: (): MyThunkResult<Promise<LoadBookmarksAction>> =>
+      async (dispatch: StoreDispatch, _) => {
+         return dispatchImport(dispatch, await pocketApi.retrieve({}), BookmarkSourceType.pocket, true);
+      },
+
+   importFromLocalStorage: (collectionId: string): MyThunkResult<LoadBookmarksAction> =>
+      (dispatch: StoreDispatch, _) => {
+         const persister = new LocalStoragePersister(collectionId);
+         return dispatchImport(dispatch, persister.bookmarks, BookmarkSourceType.local, true);
+      },
+
+   importFromReadonlyJson: (serializedBookmarkCollection: string, trusted: boolean): MyThunkResult<LoadBookmarksAction> =>
+      (dispatch: StoreDispatch, _) => {
+         const importer = new BookmarkImporter();
+         importer.addJson(serializedBookmarkCollection);
+         return dispatchImport(dispatch, importer.collection, BookmarkSourceType.readonlyJson, trusted);
+      },
 };
+
+function dispatchImport(
+   dispatch: StoreDispatch, 
+   bookmarks: BookmarkCollection,
+   type: BookmarkSourceType,
+   trusted: boolean
+) {
+   const source = createBookmarkSource(type, trusted); 
+   const sourcedBookmarks: SourcedBookmarks = { bookmarks, source };
+   const action = actionCreators.loadBookmarks(sourcedBookmarks);
+   return dispatch(action);
+}
 
 // END ACTION CREATORS

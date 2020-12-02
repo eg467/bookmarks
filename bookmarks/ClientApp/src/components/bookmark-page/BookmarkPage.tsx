@@ -183,7 +183,7 @@ export const BookmarkPage: React.FC<{}> = () => {
             }}
             startIcon={icon}
          >
-            {title}
+            <div>{title}</div>
          </Button>
       );
    }
@@ -211,12 +211,12 @@ export const BookmarkPage: React.FC<{}> = () => {
             })}
          >
             <Toolbar>
-               <Button color="default" component={RouterLink} to="/import" title="Import bookmarks">
+               <IconButton color="default" aria-label="Import bookmarks" component={RouterLink} to="/import" title="Import bookmarks">
                   <CloudDownloadIcon/>
-               </Button>
-               <Button color="default" component={RouterLink} to="/export" title="Export bookmarks">
+               </IconButton>
+               <IconButton color="default" aria-label="Export bookmarks" component={RouterLink} to="/export" title="Export bookmarks">
                   <CloudUploadIcon/>
-               </Button>
+               </IconButton>
 
                {editModeSwitch}
                {menuButton("Filters", <FilterListIcon/>, () => <FilterMenu/>,)}

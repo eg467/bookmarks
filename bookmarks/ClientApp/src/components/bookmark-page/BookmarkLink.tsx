@@ -17,6 +17,7 @@ import { selectors } from "../../redux/bookmarks/reducer";
 import {AppState} from "../../redux/root/reducer";
 import {useStoreSelector} from "../../redux/store/configureStore";
 import {Title} from "@material-ui/icons";
+import {DomainLabel} from "./DomainLabel";
 
 
 export type BookmarkLinkProps = LinkProps & {
@@ -57,7 +58,7 @@ export const BookmarkLink: React.FC<BookmarkLinkProps> = ({
    const {trusted} = useStoreSelector(selectors.selectBookmarkSource);
    const showTitle = shouldShow(BookmarkDisplayElements.title);
    const {url, title, excerpt} = useStoreSelector(state => selectors.selectBookmark(state, bookmarkId));
-   if(/^javascript/i.test(url)) {
+   if(url.toLowerCase().startsWith("javascript")) {
       return (
          <Alert severity="warning">
             <AlertTitle>This link may contain harmful JavaScript code and will be blocked from navigation or excecution.</AlertTitle>
@@ -68,9 +69,12 @@ export const BookmarkLink: React.FC<BookmarkLinkProps> = ({
    
    const SourceLink = trusted ? TrustedBookmarkLink : UntrustedBookmarkLink;
    return (
-      <SourceLink href={url} title={excerpt} rel="nofollow" target="_blank" {...rest}>
-         {showTitle ? title || url : url}
-      </SourceLink>
+      <div>
+         <SourceLink href={url} title={excerpt} rel="nofollow" target="_blank" {...rest}>
+            {showTitle ? title || url : url}
+         </SourceLink>
+         <DomainLabel url={url} inline={false} />
+      </div>
    );
 };
 

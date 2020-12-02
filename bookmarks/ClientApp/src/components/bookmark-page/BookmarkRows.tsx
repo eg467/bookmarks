@@ -9,6 +9,7 @@ import {BookmarkActions} from "./BookmarkActionFab";
 import {createStyles, makeStyles} from "@material-ui/core";
 import {Theme} from "@material-ui/core/styles";
 import BookmarkTagEditor from "../tags/BookmarkTagEditor";
+import {DomainLabel} from "./DomainLabel";
 
 const useStyles = makeStyles((theme: Theme) =>
    createStyles({
@@ -42,6 +43,8 @@ export const BookmarkRow: React.FC<BookmarkRowsProps> = ({
    const shouldShow = useStoreSelector(optionsSelector.selectDisplayElementQuery);
    const classes = useStyles();
    const dispatch = useStoreDispatch();
+   return <span>TEST</span>;
+   
    return (
       <tr style={{verticalAlign: "middle"}}>
          <td>
@@ -56,6 +59,7 @@ export const BookmarkRow: React.FC<BookmarkRowsProps> = ({
 
          <td>
              <BookmarkLink bookmarkId={id}/>
+             <DomainLabel url={url}/>
          </td>
          
          {shouldShow(BookmarkDisplayElements.tags) && (

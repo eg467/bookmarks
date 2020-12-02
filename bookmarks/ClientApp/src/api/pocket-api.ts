@@ -1,5 +1,5 @@
 //import axios from 'axios';
-import {BookmarkCollection, BookmarkData} from "../redux/bookmarks/bookmarks";
+import {BookmarkCollection, BookmarkData, toBookmarkArray} from "../redux/bookmarks/bookmarks";
 import constants from "../constants/constants";
 import {
    BookmarkSourceType,
@@ -15,6 +15,7 @@ import {
 } from "./bookmark-io";
 import storage from "./local-storage";
 import { removeNulls } from "../utils";
+import {BookmarkImporter} from "./BookmarkImporter";
 
 export interface PocketApiAuthState {
    requestToken: string;
@@ -222,7 +223,7 @@ export class PocketApi implements BookmarkPersister {
     * Retrieves a list of user bookmarks (https://getpocket.com/developer/docs/v3/retrieve)
     * @param {} params Optional parameters listed in API documentation.
     */
-   retrieve(params: RetrieveParameters) {
+   retrieve(params: RetrieveParameters): Promise<BookmarkCollection> {
       params = Object.assign({ detailType: "complete" }, params);
       return this.authenticatedCall("get", params)
          .then((results) => {
@@ -264,7 +265,8 @@ export class PocketApi implements BookmarkPersister {
             tags: bookmark.tags ? Object.keys(bookmark.tags) : [],
             url: bookmark.resolved_url,
             title: bookmark.given_title,
-            added: parseInt(bookmark.time_added, 10),
+            // convert time_added (stored in seconds since epoch) to ms since epoch
+            added: parseInt(bookmark.time_added, 10) * 1000,
             authors: bookmark.authors
                ? Object.values(bookmark.authors).map((v: any) => v.name)
                : [],
@@ -377,69 +379,117 @@ export class PocketApi implements BookmarkPersister {
       }
    }
 
-   private batchModification(
+   private createBatchAction(
       id: BookmarkKeys,
       action: string,
       otherParams?: Partial<ActionParameters>,
    ) {
-      const ids = toArray(id);
-      const actions = ids.map(
-         (item_id) => <ActionParameters>{ item_id, action, ...otherParams },
+      return toArray(id).map(
+         item_id => ({ item_id, action, ...otherParams } as ActionParameters));
+   }
+
+
+   private applyBatchAction(
+      actions: ActionParameters[]
+   ) {
+      // only called when all item_ids are set
+      const ids = actions.map(a => a.item_id);
+      return this.bookmarkModification(actions).then(rawResponse =>
+         this.parseBatchActionResponse((_, i) => ids[i]||"", rawResponse.data)
       );
-      return this.bookmarkModification(actions).then((r) =>
-         this.parseBatchActionResponse((_, i) => ids[i], r.data),
-      );
+   }
+
+   private applyCreatedBatchAction(
+      id: BookmarkKeys,
+      command: string,
+      otherParams?: Partial<ActionParameters>,
+   ) {
+      const actions = this.createBatchAction(id, command, otherParams);
+      return this.applyBatchAction(actions);
+   }
+
+   /**
+    * Pocket add requests only insert basic data like tags and URL.
+    * Synchronize other saved attributes with the recently added bookmarks.
+    * @private
+    */
+   private async syncRemoteBookmarkAttributes(bookmarks: BookmarkCollection) {
+      const bookmarkVals = toBookmarkArray(bookmarks);
+      const actions= [
+         ...this.createBatchAction(
+            bookmarkVals.filter(b => b.archive).map(b => b.id),
+            "archive"
+         ),
+         ...this.createBatchAction(
+            bookmarkVals.filter(b => b.favorite).map(b => b.id),
+            "favorite"
+         ),
+      ];
+      
+      return actions.length
+         ? this.applyBatchAction(actions)
+         : Promise.resolve();
+   }
+
+   async addBookmarks(bookmarks: BookmarkCollection): Promise<AddBookmarkResults> {
+      const seeds = Object.values(bookmarks)
+         .map<BookmarkSeed>(b => ({ url: b.url, tags: b.tags }));
+      
+      const addResults = await this.add(seeds);
+      await this.syncRemoteBookmarkAttributes(bookmarks);
+      const newIds = removeNulls(addResults.results.successfulIds);
+      return {
+         results: addResults.results,
+         addedBookmarks: await this.downloadBookmarksById(newIds)
+      }
    }
 
    /* POCKET ACTIONS */
-   async add(bookmarkSeed: BookmarkSeed | BookmarkSeed[]) {
+   async add(bookmarkSeed: OneOrMany<BookmarkSeed>): Promise<AddBookmarkResults> {
       const bookmarkSeeds = toArray(bookmarkSeed);
       const apiActions = bookmarkSeeds.map(
          (b) =>
-            <ActionParameters>{
+            ({
                action: "add",
                url: b.url,
                tags: b.tags.join(","),
-            },
+            } as ActionParameters),
       );
 
-      return this.bookmarkModification(apiActions)
-         .then((r) =>
-            this.parseBatchActionResponse((x, _) => x.item_id, r.data),
-         )
-         .then(async (results) => {
-            
-            const includesAllNewKeys = (latest: BookmarkCollection) =>
-               results.successfulIds.every(id => id !== null && latest[id]) 
-            
-            // Now retrieve results from Pocket since the modification response doesn't return full bookmark details. 
-            // Try searching only for the last number of bookmarks added 
-            let retrievalResults = await this.retrieve({sort: "newest", count: bookmarkSeeds.length});
-            if(!includesAllNewKeys(retrievalResults)) {
-               // If bookmarks were added between adding/reading and not all new ones were created, check ALL bookmarks
-               retrievalResults = await this.retrieve({});   
-            }
-            if(!includesAllNewKeys(retrievalResults)) {
-               throw new Error("The initial API call succeeded, but not all new bookmarks could be found.");
-            }
-
-            return {
-               results,
-               addedBookmarks: removeNulls(results.successfulIds).map(id => retrievalResults[id])
-            } as AddBookmarkResults;
-         });
+      const rawResponse = await this.bookmarkModification(apiActions);
+      const [parsedResponse, retrievalResults] = await Promise.all([
+         this.parseBatchActionResponse(x => x.item_id, rawResponse.data),
+         this.retrieve({})
+      ]);
+      
+      return {
+         results: parsedResponse,
+         addedBookmarks: removeNulls(parsedResponse.successfulIds).map(id => retrievalResults[id])
+      };
+   }
+   
+   private downloadBookmarksById(keys: string[]): Promise<BookmarkData[]> {
+       return this.retrieve({}).then(allBookmarks => 
+          keys.map(k => {
+             const bookmark = allBookmarks[k];
+             if(!bookmark) {
+                throw Error("Bookmark was not saved.")
+             }
+             return bookmark;
+          })
+       );
    }
 
    remove(keys: BookmarkKeys) {
-      return this.batchModification(keys, "delete");
+      return this.applyCreatedBatchAction(keys, "delete");
    }
 
    archive(keys: BookmarkKeys, status: boolean) {
-      return this.batchModification(keys, status ? "archive" : "readd");
+      return this.applyCreatedBatchAction(keys, status ? "archive" : "readd");
    }
 
    favorite(keys: BookmarkKeys, status: boolean) {
-      return this.batchModification(keys, status ? "favorite" : "unfavorite");
+      return this.applyCreatedBatchAction(keys, status ? "favorite" : "unfavorite");
    }
    /**
     * Replaces current tags for bookmarks.
@@ -453,7 +503,7 @@ export class PocketApi implements BookmarkPersister {
          [TagModification.add]: "tags_add",
          [TagModification.remove]: "tags_remove",
       };
-      return this.batchModification(keys, apiCommandByOp[operation], { tags });
+      return this.applyCreatedBatchAction(keys, apiCommandByOp[operation], { tags });
    }
 
    /**

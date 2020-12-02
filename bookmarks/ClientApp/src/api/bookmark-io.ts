@@ -52,13 +52,20 @@ export const standardizeBookmarkSeed = (seed: BookmarkSeed): BookmarkSeed => ({
     tags: standardizeTags(seed.tags)
 });
 
-export type AddBookmarkResults = {
+export type AddBookmarkResults =  {
     addedBookmarks: BookmarkData[];
     results: PartialSuccessResult;
 }
 
 export interface BookmarkPersister {
     sourceType: BookmarkSourceType;
+
+    /**
+     * Some data sources, eg. local storage work better storing all bookmarks in bulk after changes in redux store.
+     * (As opposed to Pocket, which accepts individual requests.)
+     */
+    postUpdateSync?: (Bookmarks: BookmarkCollection)=>Promise<void>;
+    
     add?: (bookmark: BookmarkSeed | BookmarkSeed[]) => Promise<AddBookmarkResults>;
     remove?: (keys: BookmarkKeys) => Promise<PartialSuccessResult>;
     archive?: (keys: BookmarkKeys, status: boolean) => Promise<PartialSuccessResult>;

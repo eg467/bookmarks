@@ -1,6 +1,9 @@
-﻿import { BookmarkCollection, BookmarkData } from "../redux/bookmarks/bookmarks";
+﻿import {BookmarkCollection, BookmarkData, toBookmarkCollection} from "../redux/bookmarks/bookmarks";
 import { standardizeTags } from "../redux/bookmarks/reducer";
+import {newId} from "../utils";
+import {BookmarkSeed} from "./bookmark-io";
 
+// noinspection SuspiciousTypeOfGuard
 export class BookmarkImporter {
    private readonly bookmarkList: BookmarkData[] = [];
 
@@ -25,7 +28,6 @@ export class BookmarkImporter {
          added,
       } = data;
 
-      // noinspection SuspiciousTypeOfGuard
       if (
          !url ||
          typeof url !== "string" ||
@@ -55,13 +57,9 @@ export class BookmarkImporter {
       return { id, url, title, tags, added };
    }
 
-   public addUrl(url: string): void {
-      const bookmark = BookmarkImporter.BookmarkDataFromAny({ url });
+   public addSeed(seed: BookmarkSeed): void {
+      const bookmark = BookmarkImporter.BookmarkDataFromAny(seed);
       this.add(bookmark);
-   }
-
-   public addUrls(urls: string[]): void {
-      urls.forEach(this.addUrl);
    }
 
    public add(bookmark: BookmarkData): void {
@@ -80,21 +78,21 @@ export class BookmarkImporter {
          parsed = false;
       }
 
-      const fromObjects = (objs: any[]): void => {
+      const addObjects = (objs: any[]): void => {
          objs.map(BookmarkImporter.BookmarkDataFromAny).forEach(b => this.add(b));
       };
 
       if (Array.isArray(parsed)) {
          if (parsed.every((x: any) => typeof x === "string")) {
             // serialized string[] of URLs
-            this.addUrls(parsed);
+            parsed.map(url => this.addSeed({url, tags:[]}));
          } else {
             // Either BookmarkData[] or <Invalid>[]
-            fromObjects(parsed);
+            addObjects(parsed);
          }
       } else if (typeof parsed === "object") {
          // serialized BookmarkCollection
-         fromObjects(Object.values(parsed));
+         addObjects(Object.values(parsed));
       } else {
          BookmarkImporter.throwParsingError(Error("Bookmarks are not of the correct type. Ensure object property names are quoted."));
       }
@@ -103,17 +101,12 @@ export class BookmarkImporter {
    private fillIds(): void {
       // If any ids are missing, rewrite them all
       if (this.bookmarkList.some((b) => !b.id)) {
-         this.bookmarkList.forEach((v, i) => {
-            v.id = String(i).padStart(4, "0");
-         });
+         this.bookmarkList.forEach(v => v.id = newId());
       }
    }
 
    public get collection(): BookmarkCollection {
       this.fillIds();
-      return this.bookmarkList.reduce((acc: BookmarkCollection, val) => {
-         acc[val.id] = val;
-         return acc;
-      }, {} as BookmarkCollection);
+      return toBookmarkCollection(this.bookmarkList);
    }
 }

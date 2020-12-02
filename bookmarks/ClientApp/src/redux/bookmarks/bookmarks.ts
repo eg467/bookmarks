@@ -20,3 +20,12 @@ export enum BookmarkSortField {
 }
 
 export type BookmarkCollection = { [id: string]: BookmarkData };
+
+export const toBookmarkCollection = (bookmarks: BookmarkData[]) => 
+   bookmarks.reduce((acc, val) => {
+      acc[val.id] = val;
+      return acc;
+   },
+   {} as BookmarkCollection);
+
+export const toBookmarkArray = (bookmarks: BookmarkCollection) => Object.values(bookmarks);

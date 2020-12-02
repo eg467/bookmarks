@@ -1,14 +1,12 @@
 ﻿import React from "react";
 import {
-   Button,
-   ButtonProps,
-   CircularProgress,
+   createStyles,
    Link,
    List,
    ListItem,
    ListItemIcon,
    ListItemText,
-   ListSubheader
+   ListSubheader, makeStyles, Theme
 } from "@material-ui/core";
 import AppleIcon from "@material-ui/icons/Apple";
 import AndroidIcon from "@material-ui/icons/Android";
@@ -16,26 +14,46 @@ import ExtensionIcon from '@material-ui/icons/Extension';
 import {useStoreDispatch, useStoreSelector} from "../../redux/store/configureStore";
 import {actionCreators as bmActionCreators } from "../../redux/pocket/actions";
 import { Alert, AlertTitle } from "@material-ui/lab";
-import { BookmarkImporterCard } from "./Importers";
+import {ImportPanelChildProps, makeImportForm, useSubmitHandlerCreator} from "./ActionPanel";
 import PocketAuthButton from "../pocket-auth/PocketAuthButton";
+import {SourcedBookmarks} from "../../redux/bookmarks/reducer";
 
-const PocketImporter = (): JSX.Element => {
+const useStyles = makeStyles((theme: Theme) =>
+   createStyles({
+      loginButton: {
+         margin: theme.spacing(2)
+      }
+   }));
+
+export type PocketImporterProps = ImportPanelChildProps & { };
+const PocketImporter: React.FC<PocketImporterProps> = ({setHandler}) => {
    const {username,awaitingAuthorization,authError} = useStoreSelector(state => state.pocket);
+   const classes = useStyles();
    const dispatch = useStoreDispatch();
-   const loadBookmarkHandler = username 
-      ? () => dispatch(bmActionCreators.fetchBookmarks())
-      : undefined;
-
-   const LoginButton = <PocketAuthButton username={username} loading={awaitingAuthorization} />
+   
+   useSubmitHandlerCreator(
+      !!username,
+      setHandler,
+      () => 
+         dispatch(bmActionCreators.fetchBookmarks()).then(r => {
+            if (!r.response) {
+               throw Error("No response was received from Pocket.");
+            }
+            return r.response as SourcedBookmarks;
+         }),
+      [dispatch]
+   );
+   
    return (
-      <BookmarkImporterCard 
-         header="Pocket Account"
-         additionalActions={LoginButton} 
-         onImportBookmarks={loadBookmarkHandler}
-      >
+      <div>
          {username &&
             <Alert severity="success">You are logged in as <b>{username}</b>.</Alert>
          }
+
+         <PocketAuthButton
+            className={classes.loginButton}
+            username={username}
+            loading={awaitingAuthorization} />
 
          {authError &&
             <Alert severity="error">
@@ -45,7 +63,7 @@ const PocketImporter = (): JSX.Element => {
          }
          
          <p>
-            <a href="https://getpocket.com">GetPocket.com</a> is an online bookmark-saving service.
+            <a href="https://getpocket.com" target="_blank">GetPocket.com</a> is an online bookmark-saving service.
          </p>
          <List
             component="nav"
@@ -89,9 +107,11 @@ const PocketImporter = (): JSX.Element => {
                </Link>
             </ListItem>
          </List>
-      </BookmarkImporterCard>
+        
+            
+      </div>
    );
 };
-export default PocketImporter;
 
-
+export const PocketImporterForm = makeImportForm(PocketImporter, "Import from Pocket");
+export default PocketImporterForm;

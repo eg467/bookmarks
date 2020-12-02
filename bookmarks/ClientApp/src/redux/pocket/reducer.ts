@@ -10,17 +10,16 @@ export type PocketState = {
     awaitingAuthorization: boolean;
 }
 
-export const initialState: PocketState = {
+export const getInitialState = () : PocketState => ({
     username: pocketApi.username,
     authError: "",
     fetchError: "",
     fetchingBookmarks: false,
     awaitingAuthorization: false
-};
-
+});
 
 export default function (
-   state = initialState,
+   state = getInitialState(),
    action: actions.PocketAction,
 ): PocketState {
     switch (action.type) {
@@ -52,7 +51,7 @@ export default function (
             };
 
         case actions.ActionType.LOGOUT:
-            return { ...initialState };
+            return { ...getInitialState() };
 
         case actions.ActionType.REFRESH_AUTH_STATE:
             return {

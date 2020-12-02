@@ -2,7 +2,7 @@ import React from "react";
 import "./App.css";
 import {Redirect, Switch} from "react-router";
 import {BrowserRouter, Route} from "react-router-dom";
-import Test from "../testing/test";
+import Test from "../testing/Test";
 import ImportPage from "../../components/import/ImportPage";
 import CompletePocketAuthentication from "../pocket-auth/CompletePocketAuthentication";
 import BookmarkPage from "../bookmark-page/BookmarkPage";
@@ -17,7 +17,8 @@ export type AppProps = {
 export const App: React.FC<AppProps> = () => {
    return (
       <BrowserRouter> 
-         <Switch>   
+         <Switch>
+            <Route path="/test" component={Test} />   
             <Route path="/import" component={ImportPage} />
             <Route path="/authenticated" component={CompletePocketAuthentication} />
             <RouteRequiringBookmarks path="/bookmarks" component={BookmarkPage} />

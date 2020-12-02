@@ -20,13 +20,13 @@ export const PocketAuthButton: React.FC<PocketAuthButtonProps> = ({
       return <CircularProgress />;
    } else if(username) {
       return (
-         <Button size="large" variant="contained" color="default" {...rest} onClick={logout}>
+         <Button size="medium" variant="contained" color="default" {...rest} onClick={logout}>
             Logout
          </Button>
       )
    } else {
       return (
-         <Button variant="contained" color="primary" size="large" {...rest} onClick={login}>
+         <Button variant="contained" color="primary" size="medium" {...rest} onClick={login}>
             Login or Create an Account
          </Button>
       );

@@ -2,44 +2,44 @@ import React, { Fragment } from "react";
 import { actionCreators } from "../../redux/pocket/actions";
 import { useHistory } from "react-router";
 import {useStoreDispatch, useStoreSelector} from "../../redux/store/configureStore";
+import {Button} from "@material-ui/core";
+import {Alert, AlertTitle} from "@material-ui/lab";
+import PocketAuthButton from "./PocketAuthButton";
 
-export type PocketAuthProps = {};
-export const PocketAuth: React.FC<PocketAuthProps> = () => {
-   const history = useHistory();
+export type PocketAuthProps = {
+   className?: string;
+};
+
+const style = {
+   button: {
+      margin: 10,
+   }
+}
+
+export const PocketAuth: React.FC<PocketAuthProps> = ({
+   className
+}) => {
    const {authError,username,awaitingAuthorization} = useStoreSelector(state => state.pocket);
-   const dispatch = useStoreDispatch(); 
-   const login = () => dispatch(actionCreators.login());
-   const logout = () => dispatch(actionCreators.logout());
-
-   const refererPath =
-      history.location.state &&
-      history.location.state.referer &&
-      history.location.state.referer.pathname;
 
    if (awaitingAuthorization) {
-      return <div>Loading...</div>;
+      return <div>Awaiting authorization...</div>;
    }
     
-   if (username) {
-      return (
-         <div>
-            {`You are logged in as ${username}.`}
-            <button onClick={logout}>Log out of Pocket</button>
-         </div>
-      );
-   }
-
    return (
-      <Fragment>
-         {refererPath && (
-            <div>
-               You will be redirected to: <b>{refererPath}</b>
-            </div>
-         )}
-         {authError && <div>{authError}</div>}
-         <button onClick={login}>Login</button>
-      </Fragment>
-   );
+     <div className={className}>
+         {username &&
+            <Alert severity="success">You are logged in as <b>{username}</b>.</Alert>
+         }
+         {authError &&
+            <Alert severity="error">
+               <AlertTitle>Authentication Error</AlertTitle>
+              {authError}
+            </Alert>
+         }
+
+         <PocketAuthButton style={style.button} username={username} loading={awaitingAuthorization} />
+      </div>
+   ); 
 };
 
 export default React.memo(PocketAuth);

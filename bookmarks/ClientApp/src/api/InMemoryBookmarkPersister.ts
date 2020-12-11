@@ -1,7 +1,9 @@
 ﻿import {BookmarkCollection, BookmarkData} from "../redux/bookmarks/bookmarks";
 import {
-   BookmarkSourceType, createPartialSuccessResult,
-   PartialSuccessResult, PersistenceResult
+   BookmarkSourceType,
+   createPartialSuccessResult,
+   PartialSuccessResult,
+   PersistenceResult
 } from "../redux/bookmarks/reducer";
 import {ciEquals, deduplicate, newId} from "../utils";
 import {
@@ -19,7 +21,11 @@ import {
  * Returns all added bookmarks plus pre-existing bookmarks with tags merged.
  */
 export class InMemoryBookmarkPersister implements  BookmarkPersister {
-   constructor(private readonly bookmarks: BookmarkCollection) {
+   constructor(
+      private readonly bookmarks: BookmarkCollection, 
+      public readonly sourceType: BookmarkSourceType = BookmarkSourceType.readonlyJson,
+      private readonly idGenerator: ((bookmarks: BookmarkCollection) => string) = newId
+   ) {
    }
 
    private createDirtyPartialSuccessResultPromise  = (
@@ -46,8 +52,6 @@ export class InMemoryBookmarkPersister implements  BookmarkPersister {
       return result;
    };
 
-   public readonly sourceType = BookmarkSourceType.readonlyJson;
-   
    private findByUrl(url: string) {
       const bookmarks = Object.values(this.bookmarks);
       return bookmarks.find((v) => ciEquals(v.url, url));
@@ -58,7 +62,11 @@ export class InMemoryBookmarkPersister implements  BookmarkPersister {
    }
    
    private createBookmark(seed: BookmarkSeed) {
-      return ({id: newId(this.bookmarks), url: seed.url, tags: seed.tags} as BookmarkData);
+      return ({
+         id: this.idGenerator(this.bookmarks),
+         url: seed.url, 
+         tags: seed.tags
+      } as BookmarkData);
    }
    
    private findOrCreate(seed: BookmarkSeed): BookmarkData {

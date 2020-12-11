@@ -15,7 +15,7 @@
     "jsx": "preserve",
     "types": ["node"],
     "lib": [
-      "es2015",
+      "ES2015",
       "dom",
       "ESNext"
     ],

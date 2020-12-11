@@ -29,7 +29,7 @@ import {
 } from "../../redux/request-states/reducer";
 import {actionCreators} from "../../redux/bookmarks/actions";
 import {BookmarkSeed, TagModification, toArray} from "../../api/bookmark-io";
-import {Alert} from "reactstrap";
+import Alert from "@material-ui/lab/Alert";
 
 export type OwnProps = {
    bookmarkId: string;

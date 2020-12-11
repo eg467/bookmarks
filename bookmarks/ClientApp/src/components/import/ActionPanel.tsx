@@ -12,10 +12,8 @@ const useStyles = makeStyles((theme: Theme) =>
    createStyles({
       root: {
          backgroundColor: theme.palette.background.paper,
-         //display: "inline-block",
-
          "& a": {
-            color: grey[800]
+            color: grey[800],
          }
       },
       content: {
@@ -28,7 +26,7 @@ const useStyles = makeStyles((theme: Theme) =>
 );
 
 /**
- * The function to invoke on submission, false to disable submission, null to hide submission element.
+ * The function to invoke on submission, false to disable submission, null to hide submission element, or the object itself to automatically submit.
  */
 export type SubmitHandler<R extends {}> = (()=>Promise<R>) | null | false;
 
@@ -41,6 +39,7 @@ export type ActionPanelProps<R extends {}, C extends ActionPanelChildProps<R>> =
    children: React.ReactElement<C>;
    header: string;
    subheader?: string;
+   commonControls?: React.ReactNode;
    onSubmitted?: (results: Promise<R>) => void;
    submitButtonContents?: React.ReactElement;
 };
@@ -49,6 +48,7 @@ export const ActionPanel = <R extends {}, C extends ActionPanelChildProps<R>>({
    children,
    header, 
    subheader,
+   commonControls,
    onSubmitted,
    submitButtonContents,
 }: ActionPanelProps<R, C>): React.ReactElement<ActionPanelProps<R, C>> => {
@@ -66,8 +66,8 @@ export const ActionPanel = <R extends {}, C extends ActionPanelChildProps<R>>({
    const newChildren = React.Children.map(
       children, c => React.cloneElement<ActionPanelChildProps<R>>(c, {setHandler}))
    
-   return (<Card className={classes.root}>
-         <CardContent className={classes.content}>
+   return (<div className={classes.root}>
+         <div className={classes.content}>
             {header &&
             <Typography gutterBottom variant="h3" component="h3">
                {header}
@@ -81,10 +81,12 @@ export const ActionPanel = <R extends {}, C extends ActionPanelChildProps<R>>({
                {subheader}
             </Typography>
             }
+            
+            {commonControls && <div>{commonControls  }</div>}
 
             {newChildren}
-         </CardContent>
-         <CardActions>
+         </div>
+         <div>
             {submitVisible && !loading &&
                <Button size="large" disabled={disabled} variant="contained" color="primary" onClick={handleSubmit}>
                   {submitButtonContents || "Submit"}
@@ -92,8 +94,8 @@ export const ActionPanel = <R extends {}, C extends ActionPanelChildProps<R>>({
             }
             
             { loading && <CircularProgress /> }
-         </CardActions>
-      </Card>
+         </div>
+      </div>
    );
 }
 
@@ -110,6 +112,16 @@ function useSubmitHandler<TReturn>() {
 
       setError("");
       setLoading(true);
+      
+      if(typeof handler === "function") {
+         const x = handler();
+      } else {
+         const x = Promise.resolve(handler);
+      }
+      const result = typeof handler === "function"
+         ? handler()
+         : Promise.resolve(handler);
+      
       return handler().then<TReturn>(
          r=> {
             setError("");
@@ -191,14 +203,13 @@ export function makeImportForm<P extends ImportPanelChildProps>(Child: React.Com
  * @param setHandler The setHandler sent from the container form
  * @param dependencies The values upon which the factory depends.
  */
-export function useSubmitHandlerCreator(
+export function useSubmitHandlerCreator<H>(
    submissionEnabled: boolean, 
-   setHandler: ((newHandler: ImportSubmitHandler)=>void)|undefined,
-   factory: ImportSubmitHandler,
+   setHandler: ((newHandler: SubmitHandler<H>)=>void)|undefined,
+   factory: SubmitHandler<H>,
    dependencies: any[]
 ) {
    const handler = useMemo(() => factory, dependencies);
-   console.log(setHandler, handler, submissionEnabled, ...dependencies);
    useEffect(() => {
       if(setHandler) {
          setHandler(submissionEnabled ? handler : false);

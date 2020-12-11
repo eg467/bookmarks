@@ -1,5 +1,5 @@
 ﻿import {BookmarkCollection, BookmarkData} from "../redux/bookmarks/bookmarks";
-import {newId, escapeHtml, decodeHtml} from "../utils";
+import {newId, decodeHtml} from "../utils";
 import {standardizeTags} from "../redux/bookmarks/reducer";
 import { isUrl } from "./bookmark-io";
 
@@ -12,8 +12,6 @@ export type GenericNode<T> = {
 }
 
 export type BrowserBookmarkTree = GenericNode<BookmarkData>;
-
-
 
 export function getBookmarkDirs(currentNode: BrowserBookmarkTree, rootNode: BrowserBookmarkTree) {
    const dirs = [];
@@ -177,10 +175,10 @@ export type ExportBookmarksOptions = {
  * @param bookmarks
  * @param options
  */
-export const exportBookmarks = (
+export const exportToBrowserBookmarksHtml = (
    bookmarks: BookmarkData[], 
    {
-      targetDirectory = "Synced Pocket Bookmarks",
+      targetDirectory = "Imported Bookmarks",
       treatTagsAsFolders = true,
       preserveTimestamps = true,
    }: ExportBookmarksOptions

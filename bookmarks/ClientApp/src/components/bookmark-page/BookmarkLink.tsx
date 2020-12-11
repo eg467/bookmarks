@@ -1,22 +1,9 @@
-﻿import React, {Fragment, useState} from "react";
+﻿import React, {useState} from "react";
 import {Alert, AlertTitle} from "@material-ui/lab";
-import {
-   Button,
-   createStyles,
-   Link,
-   LinkProps,
-   makeStyles,
-   Modal,
-   Theme,
-   Typography,
-   withStyles
-} from "@material-ui/core";
-import {useSelector} from "react-redux";
+import {Button, createStyles, Link, LinkProps, makeStyles, Modal, Theme, Typography} from "@material-ui/core";
 import {BookmarkDisplayElements, selectors as optionsSelectors} from "../../redux/options/reducer";
-import { selectors } from "../../redux/bookmarks/reducer";
-import {AppState} from "../../redux/root/reducer";
+import {selectors, SourceTrustLevel} from "../../redux/bookmarks/reducer";
 import {useStoreSelector} from "../../redux/store/configureStore";
-import {Title} from "@material-ui/icons";
 import {DomainLabel} from "./DomainLabel";
 
 
@@ -55,7 +42,7 @@ export const BookmarkLink: React.FC<BookmarkLinkProps> = ({
     bookmarkId, ...rest
 }) => {
    const shouldShow = useStoreSelector(optionsSelectors.selectDisplayElementQuery);
-   const {trusted} = useStoreSelector(selectors.selectBookmarkSource);
+   const trusted = useStoreSelector(selectors.selectBookmarkSource).trusted !== SourceTrustLevel.untrusted;
    const showTitle = shouldShow(BookmarkDisplayElements.title);
    const {url, title, excerpt} = useStoreSelector(state => selectors.selectBookmark(state, bookmarkId));
    if(url.toLowerCase().startsWith("javascript")) {
@@ -141,10 +128,10 @@ export const UntrustedBookmarkLink: React.FC<LinkProps> = ({
                </Alert>
 
                <div className={classes.modalContent}>
+                  <Typography variant="body1">
+                     Click this link if you trust it:
+                  </Typography>
                   <p>
-                     <Typography variant="body1">
-                        Click this link if you trust it:
-                     </Typography>
                      <TrustedBookmarkLink {...rest} onClick={handleClose}>
                         {rest.href}
                      </TrustedBookmarkLink>

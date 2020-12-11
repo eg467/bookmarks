@@ -14,19 +14,22 @@ import {
 } from "../middleware/promise-middleware";
 import {AppState, MyThunkResult} from "../root/reducer";
 import {StoreDispatch} from "../store/configureStore";
-import {BookmarkCollection, BookmarkSortField} from "./bookmarks";
+import {BookmarkCollection, BookmarkSortField, toBookmarkArray} from "./bookmarks";
 import {
-   BookmarkSource,
    BookmarkSourceType,
    createBookmarkSource,
+   createPartialSuccessResult,
    PartialSuccessResult,
    PersistenceResult,
+   selectBookmarks,
    selectors,
    SourcedBookmarks
 } from "./reducer";
 import {BookmarkImporter} from "../../api/BookmarkImporter";
 import pocketApi from "../../api/pocket-api";
-import {LocalStoragePersister} from "../../api/LocalStoragePersister";
+import {exportToBrowserBookmarksHtml} from "../../api/BrowserBookmarkConverter";
+import {downloadFile, yyyymmdd} from "../../utils";
+import {createLocalBookmarkPersister} from "../../api/LocalStoragePersister";
 
 export enum ActionType {
     LOAD = "bookmarks/LOAD",
@@ -71,6 +74,11 @@ export enum ActionType {
     FILTER_SELECTED = "bookmarks/FILTER_SELECTED",
     CLEAR_FILTERS = "bookmarks/CLEAR_FILTERS",
     SELECT = "bookmarks/SELECT",
+
+    EXPORT = "bookmarks/EXPORT",
+    EXPORT_SUCCESS = "bookmarks/EXPORT_SUCCESS",
+    EXPORT_FAILURE = "bookmarks/EXPORT_FAILURE",
+    EXPORT_CLEAR = "bookmarks/EXPORT_CLEAR",
 }
 
 // ACTIONS
@@ -237,70 +245,97 @@ export type DeleteTagClearAction = PromiseClearingAction<
     DeleteTagActionPayload
     >;
 
-export interface SortBookmarksAction {
+export type SortBookmarksAction = {
     type: ActionType.SORT;
     field: BookmarkSortField;
     ascendingOrder: boolean;
 }
 
-export interface SetContentFilterAction {
+export type SetContentFilterAction = {
     type: ActionType.FILTER_CONTENT;
     q: string;
-}
+};
 
-export interface SetFilterAndTagsAction {
+export type SetFilterAndTagsAction = {
     type: ActionType.FILTER_AND_TAGS;
     tags: string[];
-}
+};
 
-export interface SetFilterOrTagsAction {
+export type SetFilterOrTagsAction = {
     type: ActionType.FILTER_OR_TAGS;
     tags: string[];
-}
+};
 
-export interface SetFilterNotTagsAction {
+export type SetFilterNotTagsAction = {
     type: ActionType.FILTER_NOT_TAGS;
     tags: string[];
-}
+};
 
-export interface SetFilterArchiveAction {
+export type SetFilterArchiveAction = {
     type: ActionType.FILTER_ARCHIVE;
     archived?: boolean;
-}
+};
 
-export interface SetFilterFavoriteAction {
+export type SetFilterFavoriteAction = {
     type: ActionType.FILTER_FAVORITE;
     favorite?: boolean;
-}
+};
 
-export interface SetFilterSelectedAction {
+export type SetFilterSelectedAction = {
     type: ActionType.FILTER_SELECTED;
     selected?: boolean;
-}
+};
 
-export interface ClearFiltersAction {
+export type ClearFiltersAction = {
     type: ActionType.CLEAR_FILTERS;
-}
+};
 
-export interface SelectAction {
+export type SelectAction = {
     type: ActionType.SELECT;
     bookmarkIds?: BookmarkKeys,
     selected: boolean
-}
+};
+
+
+export type ExportActionResult = AddBookmarkResults;
+export type ExportActionJsonResult = ExportActionResult & {json: string};
+export type ExportActionPayload = {
+   sourcedBookmarks: SourcedBookmarks;
+   transferOnCompletion: boolean;
+};
+export type ExportAction = StartPromiseAction<
+   ActionType.EXPORT,
+   ExportActionPayload
+   >;
+export type ExportSuccessAction = PromiseSuccessAction<
+   ActionType.EXPORT_SUCCESS,
+   ExportActionResult,
+   ExportActionPayload
+   >;
+export type ExportFailureAction = PromiseFailureAction<
+   ActionType.EXPORT_FAILURE,
+   ExportActionPayload
+   >;
+export type ExportClearAction = PromiseClearingAction<
+   ActionType.EXPORT_CLEAR,
+   ActionType.EXPORT_SUCCESS | ActionType.EXPORT_FAILURE,
+   ExportActionPayload
+   >;
 
 export type BookmarkAction =
-    | LoadBookmarksAction 
-    | AddBookmarkAction | AddBookmarkSuccessAction | AddBookmarkFailureAction | AddBookmarkClearAction
-    | RemoveBookmarkAction | RemoveBookmarkSuccessAction | RemoveBookmarkFailureAction | RemoveBookmarkClearAction
-    | ArchiveBookmarkAction | ArchiveBookmarkSuccessAction | ArchiveBookmarkFailureAction | ArchiveBookmarkClearAction
-    | FavoriteBookmarkAction | FavoriteBookmarkSuccessAction | FavoriteBookmarkFailureAction | FavoriteBookmarkClearAction
-    | ModifyTagsAction | ModifyTagsSuccessAction | ModifyTagsFailureAction | ModifyTagsClearAction
-    | RenameTagAction | RenameTagSuccessAction | RenameTagFailureAction | RenameTagClearAction
-    | DeleteTagAction | DeleteTagSuccessAction | DeleteTagFailureAction | DeleteTagClearAction
-    | SortBookmarksAction
-    | SetFilterAndTagsAction | SetFilterOrTagsAction | SetFilterNotTagsAction | SetContentFilterAction 
-    | SetFilterArchiveAction | SetFilterFavoriteAction | SetFilterSelectedAction
-    | ClearFiltersAction | SelectAction;
+   | LoadBookmarksAction 
+   | AddBookmarkAction | AddBookmarkSuccessAction | AddBookmarkFailureAction | AddBookmarkClearAction
+   | RemoveBookmarkAction | RemoveBookmarkSuccessAction | RemoveBookmarkFailureAction | RemoveBookmarkClearAction
+   | ArchiveBookmarkAction | ArchiveBookmarkSuccessAction | ArchiveBookmarkFailureAction | ArchiveBookmarkClearAction
+   | FavoriteBookmarkAction | FavoriteBookmarkSuccessAction | FavoriteBookmarkFailureAction | FavoriteBookmarkClearAction
+   | ModifyTagsAction | ModifyTagsSuccessAction | ModifyTagsFailureAction | ModifyTagsClearAction
+   | RenameTagAction | RenameTagSuccessAction | RenameTagFailureAction | RenameTagClearAction
+   | DeleteTagAction | DeleteTagSuccessAction | DeleteTagFailureAction | DeleteTagClearAction
+   | SortBookmarksAction
+   | SetFilterAndTagsAction | SetFilterOrTagsAction | SetFilterNotTagsAction | SetContentFilterAction 
+   | SetFilterArchiveAction | SetFilterFavoriteAction | SetFilterSelectedAction
+   | ClearFiltersAction | SelectAction
+   | ExportAction | ExportSuccessAction | ExportFailureAction | ExportClearAction;
 
 // END ACTIONS
 
@@ -510,24 +545,98 @@ export const actionCreators = {
 
    importFromPocket: (): MyThunkResult<Promise<LoadBookmarksAction>> =>
       async (dispatch: StoreDispatch, _) => {
-         return dispatchImport(dispatch, await pocketApi.retrieve({}), BookmarkSourceType.pocket, true);
+         return dispatchLoad(dispatch, await pocketApi.retrieve({}), BookmarkSourceType.pocket, true);
       },
 
-   importFromLocalStorage: (collectionId: string): MyThunkResult<LoadBookmarksAction> =>
-      (dispatch: StoreDispatch, _) => {
-         const persister = new LocalStoragePersister(collectionId);
-         return dispatchImport(dispatch, persister.bookmarks, BookmarkSourceType.local, true);
+   importFromLocalStorage: (collectionId: string): MyThunkResult<Promise<LoadBookmarksAction>> =>
+      async (dispatch: StoreDispatch, getState: () => AppState) => {
+         const persister = createLocalBookmarkPersister(collectionId, selectBookmarks(getState()));
+         return dispatchSourcedBookmarks(dispatch, await persister.getBookmarks());
       },
 
    importFromReadonlyJson: (serializedBookmarkCollection: string, trusted: boolean): MyThunkResult<LoadBookmarksAction> =>
       (dispatch: StoreDispatch, _) => {
          const importer = new BookmarkImporter();
          importer.addJson(serializedBookmarkCollection);
-         return dispatchImport(dispatch, importer.collection, BookmarkSourceType.readonlyJson, trusted);
+         return dispatchLoad(dispatch, importer.collection, BookmarkSourceType.readonlyJson, trusted);
       },
+
+   importFromFirebase: (bookmarks: BookmarkCollection, owned: boolean, trusted: boolean): MyThunkResult<LoadBookmarksAction> =>
+      (dispatch: StoreDispatch, _) => {
+         const type = owned ? BookmarkSourceType.ownedFirebase : BookmarkSourceType.readonlyFirebase;
+         return dispatchLoad(dispatch, bookmarks, type, trusted);
+      },
+   
+   exportToPocket: (payload: ExportActionPayload): MyThunkResult<Promise<ExportSuccessAction>> => 
+      (dispatch: StoreDispatch) => {
+         const {transferOnCompletion,sourcedBookmarks} = payload;
+         return dispatch(createPromiseAction({
+            startType: ActionType.EXPORT,
+            successType: ActionType.EXPORT_SUCCESS,
+            failureType: ActionType.EXPORT_CLEAR,
+            promise: async () => {
+               const addResult = await pocketApi.addBookmarks(sourcedBookmarks.bookmarks);
+               if(transferOnCompletion) {
+                  const bookmarks = await pocketApi.retrieve({});
+                  const action = actionCreators.loadBookmarks({bookmarks, source: sourcedBookmarks.source});
+                  dispatch(action);
+               } 
+               return addResult as ExportActionResult;
+            },
+            payload,
+         }));
+      },
+   
+   
+
+   exportToBrowserBookmarksFile: (payload: ExportActionPayload, treatTagsAsFolders: boolean): MyThunkResult<ExportActionResult> =>
+      (dispatch: StoreDispatch) => {
+         const {sourcedBookmarks: {bookmarks, source}, transferOnCompletion} = payload;
+
+         const filename = `${yyyymmdd()}-exported-bookmarks.html`;
+         const addedBookmarks = toBookmarkArray(bookmarks);
+         const html = exportToBrowserBookmarksHtml(addedBookmarks, {treatTagsAsFolders})
+         downloadFile(filename, html);
+         if(transferOnCompletion) {
+            const action = actionCreators.loadBookmarks(payload.sourcedBookmarks);
+            dispatch(action);
+         }
+         const results = createPartialSuccessResult(false);
+         results.successfulIds = Object.keys(bookmarks);
+         return { addedBookmarks, results  } as ExportActionJsonResult;
+      },
+
+   exportToJsonFile: (payload: ExportActionPayload, treatTagsAsFolders: boolean): MyThunkResult<ExportActionJsonResult> =>
+      (dispatch: StoreDispatch) => {
+         const {sourcedBookmarks: {bookmarks}, transferOnCompletion} = payload;
+         const filename = `${yyyymmdd()}-exported-bookmarks.json`;
+         const json = JSON.stringify(bookmarks);
+         downloadFile(filename, json);
+         if(transferOnCompletion) {
+            const action = actionCreators.loadBookmarks(payload.sourcedBookmarks);
+            dispatch(action);
+         }
+         
+         const results = createPartialSuccessResult(false);
+         results.successfulIds = Object.keys(bookmarks);
+         return { addedBookmarks: toBookmarkArray(bookmarks), results, json  } as ExportActionJsonResult;
+      },
+      
+      exportToFirebase: () => 
+         (dispatch: StoreDispatch) => {
+            
+            
+         }
+      
 };
 
-function dispatchImport(
+
+function dispatchSourcedBookmarks(dispatch: StoreDispatch, sourcedBookmarks: SourcedBookmarks) {
+   const action = actionCreators.loadBookmarks(sourcedBookmarks);
+   return dispatch(action);
+}
+
+function dispatchLoad(
    dispatch: StoreDispatch, 
    bookmarks: BookmarkCollection,
    type: BookmarkSourceType,
@@ -535,8 +644,8 @@ function dispatchImport(
 ) {
    const source = createBookmarkSource(type, trusted); 
    const sourcedBookmarks: SourcedBookmarks = { bookmarks, source };
-   const action = actionCreators.loadBookmarks(sourcedBookmarks);
-   return dispatch(action);
+   return dispatchSourcedBookmarks(dispatch, sourcedBookmarks);
 }
+
 
 // END ACTION CREATORS

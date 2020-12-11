@@ -43,14 +43,17 @@ export const AddBookmarkForm: React.FC<AddBookmarkFormProps> = ({onClose}) => {
    const dispatch = useStoreDispatch();
    const classes = useAddBookmarkFormStyles();
 
-   const handleUrlChange = (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) =>
-      setState(state => ({...state, url: event.target.value}));
-
+   const handleUrlChange = (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+      const url = event.target.value;
+      setState(state => ({...state, url}));
+   };
+   
    const handleSetTags = (tags: string[]) => {
       setState(state => ({...state, tags}));
    }
    
    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();   
       if(!isUrl(state.url)) {
          setState(state => ({...state, error: "Invalid URL"}));
          return;
@@ -60,8 +63,7 @@ export const AddBookmarkForm: React.FC<AddBookmarkFormProps> = ({onClose}) => {
       const action = actionCreators.add([{tags,url}])
       dispatch(action).then(
          x =>  setState({tags:[], url:"", error:"", success: `URL added: ${url}`}),
-         err => setState(state => ({...state, error: String(err)})));
-      event.preventDefault();
+         err => setState(state => ({...state, error: err+""})));
    }
 
    const {error, success, tags} = state;
@@ -77,7 +79,7 @@ export const AddBookmarkForm: React.FC<AddBookmarkFormProps> = ({onClose}) => {
          {success && <Alert severity="success">{success}</Alert>}
          <div className={classes.formContainer}>
             <form onSubmit={handleSubmit}>
-               <TextField onChange={handleUrlChange} label="URL" />
+               <TextField variant="outlined" size="medium" onChange={handleUrlChange} value={state.url} label="URL" />
                <Select className={classes.tagEditor} onChangedStrings={handleSetTags} valueStrings={tags} />
                <Button variant="contained" color="primary" type="submit">Add Bookmark</Button>
             </form>

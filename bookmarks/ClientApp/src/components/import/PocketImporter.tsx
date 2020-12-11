@@ -17,10 +17,11 @@ import { Alert, AlertTitle } from "@material-ui/lab";
 import {ImportPanelChildProps, makeImportForm, useSubmitHandlerCreator} from "./ActionPanel";
 import PocketAuthButton from "../pocket-auth/PocketAuthButton";
 import {SourcedBookmarks} from "../../redux/bookmarks/reducer";
+import {PocketAuth} from "../pocket-auth/PocketAuth";
 
 const useStyles = makeStyles((theme: Theme) =>
    createStyles({
-      loginButton: {
+      auth: {
          margin: theme.spacing(2)
       }
    }));
@@ -46,22 +47,7 @@ const PocketImporter: React.FC<PocketImporterProps> = ({setHandler}) => {
    
    return (
       <div>
-         {username &&
-            <Alert severity="success">You are logged in as <b>{username}</b>.</Alert>
-         }
-
-         <PocketAuthButton
-            className={classes.loginButton}
-            username={username}
-            loading={awaitingAuthorization} />
-
-         {authError &&
-            <Alert severity="error">
-                <AlertTitle>Authentication Error</AlertTitle>
-               {authError}
-            </Alert>
-         }
-         
+         <PocketAuth className={classes.auth} />
          <p>
             <a href="https://getpocket.com" target="_blank">GetPocket.com</a> is an online bookmark-saving service.
          </p>

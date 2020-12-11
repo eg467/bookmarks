@@ -119,3 +119,23 @@ export function downloadFile(filename: string, contents: string) {
    element.click();
    document.body.removeChild(element);
 }
+
+export type SettledPromise<T> = {status:"fulfilled",value:T} | {status:"rejected",reason:any}; 
+export const allSettled = <T>(
+   promises: Promise<T>[]
+):  Promise<(SettledPromise<T>)[]> =>
+   Promise.all(
+      promises.map(p => p.then(
+         value => ({status: "fulfilled", value} as SettledPromise<T>),
+         reason => ({status: "rejected", reason} as SettledPromise<T>)
+      ))
+   );
+
+export const yyyymmdd = (date: Date = new Date()) => {
+   const y = date.getFullYear().toString();
+   let m = (date.getMonth() + 1).toString();
+   let d = date.getDate().toString();
+   (d.length == 1) && (d = '0' + d);
+   (m.length == 1) && (m = '0' + m);
+   return y + m + d;
+}

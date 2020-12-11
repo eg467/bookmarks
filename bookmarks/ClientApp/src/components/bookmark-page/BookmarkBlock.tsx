@@ -15,21 +15,13 @@ import Favicon from "../images/Favicon";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
 import CardActions from "@material-ui/core/CardActions";
-import FavoriteIcon from "@material-ui/icons/Favorite";
-import DeleteIcon from "@material-ui/icons/Delete";
-import ArchiveIcon from "@material-ui/icons/Archive";
 import {proxyImageSrc} from "../images/proxied-img";
 import {actionCreators, ModifyTagsSuccessAction} from "../../redux/bookmarks/actions";
 import {TagModification} from "../../api/bookmark-io";
-import LoadingFab from "../common/LoadingFab";
-
-import {blue, common, grey, red, yellow} from "@material-ui/core/colors";
 import BookmarkTagEditor from "../tags/BookmarkTagEditor";
-import {Checkbox, createStyles, FormControlLabel, makeStyles} from "@material-ui/core";
-import VirusTotalButton from "../common/VirusTotalButton";
+import {createStyles, makeStyles} from "@material-ui/core";
 import {BookmarkData} from "../../redux/bookmarks/bookmarks";
 import {Theme} from "@material-ui/core/styles";
-import {getHostName} from "../../utils";
 import {BookmarkDisplayElements, OptionsState, selectors as optionSelectors} from "../../redux/options/reducer";
 import {BookmarkLink} from "./BookmarkLink";
 import { connect } from "react-redux";
@@ -142,7 +134,6 @@ const BookmarkBlock: React.FC<BookmarkBlockProps> = (props) => {
                )
             }
             title={<BookmarkLink bookmarkId={bookmarkId} />}
-            subheader={<DomainLabel url={url}/>}
          />
     
          {shouldShow(BookmarkDisplayElements.image) && proxiedImage && (

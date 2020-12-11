@@ -7,6 +7,7 @@ import {
     standardizeTags
 } from "../redux/bookmarks/reducer";
 import { standardizeUrl } from "../utils";
+import React from "react";
 
 export const toArray = <T>(keys: OneOrMany<T>) => Array.isArray(keys) ? keys : [keys];
 export type BookmarkKeys = OneOrMany<string>;

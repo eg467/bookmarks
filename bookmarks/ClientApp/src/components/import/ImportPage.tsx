@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import BrowserBookmarkImporterForm from "./BrowserBookmarkImporter";
 import {VerticalTabPanel} from "../common/VerticalTabPanel";
 import {ActionPanel, ImportPanelChildProps} from "./ActionPanel";
+import FirebaseImporterForm from "./FirebaseImporter";
 
 const useStyles = makeStyles((theme: Theme) => ({
 
@@ -23,6 +24,7 @@ const ImportPage = (): JSX.Element => {
        ["Pocket", <PocketImporter/>],
        ["Raw JSON", <JsonImporterForm/>],
        ["Browser Bookmarks", <BrowserBookmarkImporterForm/>],
+       ["Cloud", <FirebaseImporterForm/>],
     ]);
    
    return (

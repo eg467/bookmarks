@@ -43,7 +43,6 @@ export const BookmarkRow: React.FC<BookmarkRowsProps> = ({
    const shouldShow = useStoreSelector(optionsSelector.selectDisplayElementQuery);
    const classes = useStyles();
    const dispatch = useStoreDispatch();
-   return <span>TEST</span>;
    
    return (
       <tr style={{verticalAlign: "middle"}}>

@@ -1,7 +1,7 @@
 import * as actions from "./actions";
 import {PocketAction,ActionType as pocketActionType} from "../pocket/actions";
 import { createSelector } from "reselect";
-import {SetOps, ciEquals, deduplicate, removeNulls, ciCollator, getHostName} from "../../utils";
+import {SetOps, ciEquals, deduplicate, removeNulls, ciCollator, getHostName, newId} from "../../utils";
 import {
    BookmarkSortField,
    BookmarkCollection,
@@ -18,6 +18,8 @@ import { AppState } from "../root/reducer";
 import {RequestStatesState} from "../request-states/reducer";
 import produce from "immer";
 import {InMemoryBookmarkPersister} from "../../api/InMemoryBookmarkPersister";
+import {FirebasePersister} from "../../api/firebase/firebase";
+import {createLocalBookmarkPersister} from "../../api/LocalStoragePersister";
 
 export enum BookmarkSourceType {
    /**
@@ -48,16 +50,18 @@ export enum BookmarkSourceType {
     * Stored using browser local storage API.
     */
    local,
+   ownedFirebase,
+   readonlyFirebase,
 }
-
+ 
 export enum SourceTrustLevel {
-   trusted, untrusted, ignoredUntrusted
+   untrusted, ignoredUntrusted, trusted
 }
 
 export type BookmarkSource = {
    type: BookmarkSourceType;
    description: string;
-   bookmarkSetIdentifier?: string;
+   bookmarkSetId?: string;
    trusted: SourceTrustLevel;
 }
 
@@ -70,7 +74,7 @@ export const createBookmarkSource = (
    type,
    trusted: trusted ? SourceTrustLevel.trusted : SourceTrustLevel.untrusted,
    description: description || BookmarkSourceType[type],
-   bookmarkSetIdentifier 
+   bookmarkSetId: bookmarkSetIdentifier 
 });
 
 export type SourcedBookmarks = {
@@ -130,8 +134,8 @@ export const initialState: BookmarkState = {
    },
 };
 
-export const ciTagIndex = (q: string, tags: string[]) =>
-   tags.findIndex((t) => ciEquals(t, q));
+export const ciIndexOf = (q: string, values: string[]) =>
+   values.findIndex((v) => ciEquals(v, q));
 
 export interface PersistenceResult {
    /**
@@ -150,19 +154,24 @@ export type PartialSuccessResult = PersistenceResult & {
    failureIds: Nullable<FailedIndividualRequest>[];
 }
 
-export const createPartialSuccessResult = (dirtyChange: boolean): PartialSuccessResult => ({
+export const createPartialSuccessResult = (dirtyChange: boolean, count?: number): PartialSuccessResult => ({
    dirtyChange,
-   failureIds: [],
-   successfulIds: []
+   failureIds: count ? [...new Array(count)].map(() => null) : [],
+   successfulIds: count ? [...new Array(count)].map(() => null) : [],
 });
 
-export const standardizeTags = (tags: string[]) =>
-   deduplicate(
+export const standardizeTags = (tags: OneOrMany<string>) => {
+   if(typeof(tags) === "string") {
+      tags = tags.split(",")
+   }
+   return deduplicate(
       tags.map(
          t => t.toLocaleLowerCase()
-            .replace(/[^\s-_a-z0-9]+/gi, "_"))
-            .filter(x => x)
+            .trim()
+            .replace(/,+/g, "."))
+         .filter(x => x)
    );
+};
 
 export const standardizeTag = (tag: string) => {
    const tags = standardizeTags([tag]);
@@ -263,7 +272,7 @@ const reducer = produce(
          case actions.ActionType.RENAME_TAG_SUCCESS:
             const { oldTag, newTag } = action.payload;
             for (const b of Object.values(state.bookmarks)) {
-               const io = ciTagIndex(oldTag, b.tags);
+               const io = ciIndexOf(oldTag, b.tags);
                if (io >= 0) {
                   b.tags[io] = newTag;
                }
@@ -273,7 +282,7 @@ const reducer = produce(
          case actions.ActionType.DELETE_TAG_SUCCESS:
             const { tag } = action.payload;
             for (const b of Object.values(state.bookmarks)) {
-               const io = ciTagIndex(tag, b.tags);
+               const io = ciIndexOf(tag, b.tags);
                if (io >= 0) {
                   b.tags.splice(io, 1);
                }
@@ -377,10 +386,21 @@ const selectAreBookmarksLoaded = (state: AppState) => selectBookmarkSource(state
 const selectBookmarkPersister = createSelector(
    [selectBookmarkSource, selectBookmarks],
    (src, currentBookmarks): BookmarkPersister => {
+      const safeSetId = () => {
+         if(!src.bookmarkSetId) {
+            throw Error("No bookmark set selected.");
+         }
+         return src.bookmarkSetId;
+      }
       switch (src.type) {
          case BookmarkSourceType.pocket:
             return pocketApi;
-
+         case BookmarkSourceType.ownedFirebase:
+            return new FirebasePersister(safeSetId(), currentBookmarks);
+         case BookmarkSourceType.readonlyFirebase:
+            return new InMemoryBookmarkPersister(currentBookmarks, BookmarkSourceType.readonlyFirebase, newId);
+         case BookmarkSourceType.local:
+            return createLocalBookmarkPersister(safeSetId(), currentBookmarks);
          default:
             return new InMemoryBookmarkPersister(currentBookmarks);
       }
